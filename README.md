@@ -162,7 +162,7 @@ exp(sum(ln(1 + daily_return))) - 1
 ![Tableau Dashboard](screenshots/Perfomance_vs_benchmark.png)
 
 ## dbt Lineage Graph
-![dbt Lineage](screenshots/lineage graph.png)
+![dbt Lineage](screenshots/lineage_graph.png)
 
 ---
 
@@ -212,4 +212,5 @@ Unit Testing: Add dbt data tests for financial threshold validation.
 This project simulates a production-grade environment, integrating Data Engineering, Analytics Engineering, and Financial Modeling. It is designed to demonstrate proficiency in cloud-based data stacks (GCP) and the separation of concerns between data transformation and visualization.
 
 # Author: Antuel Quirino
+
 

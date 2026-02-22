@@ -6,3 +6,4 @@ db-dtypes
 pyarrow
 numpy
 altair
+yfinance

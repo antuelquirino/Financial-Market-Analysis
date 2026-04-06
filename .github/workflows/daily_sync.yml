@@ -25,7 +25,10 @@ jobs:
       - name: Authenticate to Google Cloud
         shell: bash
         run: |
-          echo "${{ secrets.GCP_SA_KEY }}" > gcp_key.json
+          # Usamos un método más seguro para escribir el archivo sin romper el JSON
+          cat <<EOF > gcp_key.json
+          ${{ secrets.GCP_SA_KEY }}
+          EOF
           echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/gcp_key.json" >> $GITHUB_ENV
 
       - name: Run Daily Price Extraction

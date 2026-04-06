@@ -29,4 +29,4 @@ jobs:
           echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/gcp_key.json" >> $GITHUB_ENV
 
       - name: Run Daily Price Extraction
-        run: python daily_update.py
+        run: python extraction/daily_update.py

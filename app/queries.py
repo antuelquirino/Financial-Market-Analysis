@@ -1,12 +1,17 @@
 from google.cloud import bigquery
 from bigquery_client import get_client
 
+# Definimos el proyecto y dataset centralizado para evitar errores
+PROJECT_ID = "financial-market-analysis"
+DATASET_ID = "analytics_finance"
+
 def get_tickers():
     client = get_client()
 
-    query = """
+    
+    query = f"""
         SELECT DISTINCT ticker
-        FROM raw_finance.mart_prices
+        FROM `{PROJECT_ID}.{DATASET_ID}.mart_prices`
         ORDER BY ticker
     """
 
@@ -16,7 +21,8 @@ def get_tickers():
 def get_ticker_data(ticker, start_date=None, end_date=None):
     client = get_client()
 
-    query = """
+   
+    query = f"""
         SELECT
             date,
             ticker,
@@ -27,7 +33,7 @@ def get_ticker_data(ticker, start_date=None, end_date=None):
             drawdown,
             cagr,
             sharpe_ratio
-        FROM raw_finance.mart_prices
+        FROM `{PROJECT_ID}.{DATASET_ID}.mart_prices`
         WHERE ticker = @ticker
     """
 
@@ -52,5 +58,3 @@ def get_ticker_data(ticker, start_date=None, end_date=None):
     job_config = bigquery.QueryJobConfig(query_parameters=params)
 
     return client.query(query, job_config=job_config).to_dataframe()
-
-

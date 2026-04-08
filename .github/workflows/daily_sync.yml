@@ -24,15 +24,15 @@ jobs:
 
       - name: Run Daily Price Extraction
         env:
-
-          GCP_SA_KEY_JSON: ${{ secrets.GCP_SA_KEY }} 
+          # Mapeo correcto: Python busca 'GCP_SA_KEY_JSON'
+          GCP_SA_KEY_JSON: ${{ secrets.GCP_SA_KEY }}
         run: python extraction/daily_update.py
 
       - name: Run dbt transformation
         env:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
         run: |
-          # Creamos el archivo gcp_key.json usando Python para asegurar formato perfecto
+          # Creamos el archivo SOLO para dbt usando Python (es más seguro)
           python -c "import os, json; f=open('gcp_key.json', 'w'); json.dump(json.loads(os.environ['GCP_SA_KEY']), f)"
           
           mkdir -p ~/.dbt

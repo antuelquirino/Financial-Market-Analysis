@@ -25,23 +25,21 @@ jobs:
       - name: Authenticate to Google Cloud
         shell: bash
         run: |
-          echo "${{ secrets.GCP_SA_KEY }}" > gcp_key.json
+          # Usamos comillas simples para proteger el JSON de caracteres especiales
+          echo '${{ secrets.GCP_SA_KEY }}' > gcp_key.json
           echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/gcp_key.json" >> $GITHUB_ENV
 
       - name: Run Daily Price Extraction
         run: python extraction/daily_update.py
 
-      
-
       - name: Run dbt transformation
         env:
-        
           DBT_KEYFILE: ${{ github.workspace }}/gcp_key.json
         run: |
-          
+          # Creamos el directorio de dbt
           mkdir -p ~/.dbt
           
-         
+          # Generamos el profiles.yml dinámicamente
           cat <<EOF > ~/.dbt/profiles.yml
           market_pipeline:
             target: prod
@@ -56,4 +54,7 @@ jobs:
                 priority: interactive
           EOF
           
-          
+          # Ejecutamos dbt
+          cd dbt_project
+          dbt deps
+          dbt run

@@ -23,11 +23,16 @@ jobs:
           pip install pandas yfinance google-cloud-bigquery pandas-gbq db-dtypes dbt-bigquery
 
       - name: Authenticate to Google Cloud
-        shell: bash
+        id: auth
+        uses: 'google-github-actions/auth@v1'
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
+          create_credentials_file: true
+
+      - name: Setup Environment
         run: |
-          # Usamos comillas simples para proteger el JSON de caracteres especiales
-          echo '${{ secrets.GCP_SA_KEY }}' > gcp_key.json
-          echo "GOOGLE_APPLICATION_CREDENTIALS=$GITHUB_WORKSPACE/gcp_key.json" >> $GITHUB_ENV
+          echo "GOOGLE_APPLICATION_CREDENTIALS=${{ steps.auth.outputs.credentials_file_path }}" >> $GITHUB_ENV
+          cp ${{ steps.auth.outputs.credentials_file_path }} gcp_key.json
 
       - name: Run Daily Price Extraction
         run: python extraction/daily_update.py
@@ -36,10 +41,7 @@ jobs:
         env:
           DBT_KEYFILE: ${{ github.workspace }}/gcp_key.json
         run: |
-          # Creamos el directorio de dbt
           mkdir -p ~/.dbt
-          
-          # Generamos el profiles.yml dinámicamente
           cat <<EOF > ~/.dbt/profiles.yml
           market_pipeline:
             target: prod
@@ -53,8 +55,6 @@ jobs:
                 keyfile: $DBT_KEYFILE
                 priority: interactive
           EOF
-          
-          # Ejecutamos dbt
           cd dbt_project
           dbt deps
           dbt run

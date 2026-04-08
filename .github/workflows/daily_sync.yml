@@ -19,12 +19,10 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: |
-          pip install pandas yfinance google-cloud-bigquery pandas-gbq db-dtypes dbt-bigquery
+        run: pip install pandas yfinance google-cloud-bigquery pandas-gbq db-dtypes dbt-bigquery
 
       - name: Run Daily Price Extraction
         env:
-          # Mapeo correcto: Python busca 'GCP_SA_KEY_JSON'
           GCP_SA_KEY_JSON: ${{ secrets.GCP_SA_KEY }}
         run: python extraction/daily_update.py
 
@@ -32,9 +30,8 @@ jobs:
         env:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
         run: |
-          # Creamos el archivo SOLO para dbt usando Python (es más seguro)
+          # Usamos Python para crear el archivo dbt, es más seguro que bash
           python -c "import os, json; f=open('gcp_key.json', 'w'); json.dump(json.loads(os.environ['GCP_SA_KEY']), f)"
-          
           mkdir -p ~/.dbt
           cat <<EOF > ~/.dbt/profiles.yml
           market_pipeline:
@@ -49,7 +46,6 @@ jobs:
                 keyfile: $(pwd)/gcp_key.json
                 priority: interactive
           EOF
-          
           cd dbt_project
           dbt deps
           dbt run

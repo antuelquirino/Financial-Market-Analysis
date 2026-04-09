@@ -47,5 +47,6 @@ jobs:
                 priority: interactive
           EOF
           cd dbt_project
+          dbt clean
           dbt deps
           dbt run

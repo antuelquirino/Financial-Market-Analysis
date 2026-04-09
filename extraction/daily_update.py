@@ -24,13 +24,22 @@ def get_client():
     else:
         return bigquery.Client(project=PROJECT_ID)
 
+def load_ticker(ticker):
+    df = yf.download(ticker, period="5d", interval="1d")
+    df.reset_index(inplace=True)
+    df.columns = df.columns.str.lower()
+    df["ticker"] = ticker
+    return df[["date", "ticker", "open", "high", "low", "close", "volume"]]
+
 def run_incremental_extraction():
     client = get_client()
     
-    df = yf.download(TICKERS, period="5d", interval="1d")
-    df = df[['Open', 'High', 'Low', 'Close', 'Volume']]
-    df = df.stack(level=1).reset_index()
-    df.columns = ['date', 'ticker', 'open', 'high', 'low', 'close', 'volume']
+    dfs = []
+    for ticker in TICKERS:
+        dfs.append(load_ticker(ticker))
+
+    df = pd.concat(dfs, ignore_index=True)
+
     df['date'] = pd.to_datetime(df['date']).dt.tz_localize(None)
     df.drop_duplicates(subset=["ticker", "date"], inplace=True)
 

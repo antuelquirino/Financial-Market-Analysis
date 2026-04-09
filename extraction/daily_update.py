@@ -27,8 +27,12 @@ def get_client():
 def load_ticker(ticker):
     df = yf.download(ticker, period="5d", interval="1d")
     df.reset_index(inplace=True)
-    df.columns = df.columns.str.lower()
+
+    # FIX MultiIndex
+    df.columns = [col[0].lower() if isinstance(col, tuple) else col.lower() for col in df.columns]
+
     df["ticker"] = ticker
+
     return df[["date", "ticker", "open", "high", "low", "close", "volume"]]
 
 def run_incremental_extraction():

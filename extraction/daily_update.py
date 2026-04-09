@@ -5,79 +5,85 @@ from google.oauth2 import service_account
 import os
 import json
 
+# =====================================================
+# 1. Configuración
+# =====================================================
 PROJECT_ID = "financial-market-analysis"
 DATASET = "raw_finance"
 TABLE = "market_prices"
 TABLE_ID = f"{PROJECT_ID}.{DATASET}.{TABLE}"
+
+START_DATE = "2021-01-01" # 5 años aprox de historia
+
 TICKERS = ["AAPL", "AMZN", "NVDA", "XOM", "CVX", "JPM", "C", "^GSPC"]
 
+# =====================================================
+# 2. Cliente de BigQuery (Compatible con GitHub)
+# =====================================================
 def get_client():
-    if "GOOGLE_APPLICATION_CREDENTIALS" in os.environ:
-        del os.environ["GOOGLE_APPLICATION_CREDENTIALS"]
-
     key_json = os.environ.get('GCP_SA_KEY_JSON')
-    
     if key_json:
         info = json.loads(key_json)
         credentials = service_account.Credentials.from_service_account_info(info)
         return bigquery.Client(credentials=credentials, project=PROJECT_ID)
-    else:
-        return bigquery.Client(project=PROJECT_ID)
+    return bigquery.Client(project=PROJECT_ID)
 
-def load_ticker(ticker):
-    # Descargamos 5 años de datos
-    df = yf.download(ticker, period="5y", interval="1d")
+# =====================================================
+# 3. Cargador de datos (Con arreglo MultiIndex)
+# =====================================================
+def load_market_data(ticker, start):
+    # Descarga
+    df = yf.download(ticker, start=start, auto_adjust=True, progress=False)
     
-    # FIX: Si yfinance devuelve MultiIndex (ej. Price y Ticker), lo aplanamos
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.columns.get_level_values(0)
-    
+    # IMPORTANTE: Resetear índice primero
     df.reset_index(inplace=True)
 
-    # Pasamos columnas a minúsculas (ahora que el índice es simple, .str funcionará)
-    df.columns = [col.lower() for col in df.columns]
+    # REGLA DE ORO: Si es MultiIndex, aplanar ANTES de cualquier otra cosa
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
 
-    # Mapeo de seguridad por si las columnas vienen como 'adj close'
-    df = df.rename(columns={
-        "adj close": "close"
-    })
-
-    df["ticker"] = ticker
-
-    # Retornamos el set completo de columnas para que dbt no falle
-    return df[["date", "ticker", "open", "high", "low", "close", "volume"]]
-
-def run_incremental_extraction():
-    client = get_client()
+    # Ahora sí podemos usar .str.lower()
+    df.columns = df.columns.str.lower().str.replace(" ", "_")
     
+    df["ticker"] = ticker
+    return df
+
+# =====================================================
+# 4. Ejecución Principal
+# =====================================================
+def run_pipeline():
+    client = get_client()
     dfs = []
+
     for ticker in TICKERS:
-        print(f"Descargando {ticker}...")
+        print(f"Downloading {ticker}...")
         try:
-            data = load_ticker(ticker)
-            if not data.empty:
-                dfs.append(data)
+            temp_df = load_market_data(ticker, START_DATE)
+            if not temp_df.empty:
+                dfs.append(temp_df)
         except Exception as e:
             print(f"Error con {ticker}: {e}")
 
     if not dfs:
+        print("No se descargaron datos.")
         return
 
-    df = pd.concat(dfs, ignore_index=True)
+    df_market = pd.concat(dfs, ignore_index=True)
 
-    # Limpieza de fechas para BigQuery
-    df['date'] = pd.to_datetime(df['date']).dt.tz_localize(None)
-    df.drop_duplicates(subset=["ticker", "date"], inplace=True)
+    # Seleccionar solo lo que dbt espera
+    df_market = df_market[["date", "ticker", "open", "high", "low", "close", "volume"]]
 
-    # TRUNCATE es clave: borra lo viejo y sube los 5 años limpios
-    job_config = bigquery.LoadJobConfig(
-        write_disposition="WRITE_TRUNCATE",
-    )
+    # Limpiar fechas para BigQuery
+    df_market['date'] = pd.to_datetime(df_market['date']).dt.tz_localize(None)
+    df_market.drop_duplicates(subset=["ticker", "date"], inplace=True)
 
-    print(f"Subiendo datos a BigQuery ({TABLE_ID})...")
-    job = client.load_table_from_dataframe(df, TABLE_ID, job_config=job_config)
+    # Carga con TRUNCATE (Borra y reemplaza con historia limpia)
+    job_config = bigquery.LoadJobConfig(write_disposition="WRITE_TRUNCATE")
+
+    print(f"Cargando {len(df_market)} filas en BigQuery...")
+    job = client.load_table_from_dataframe(df_market, TABLE_ID, job_config=job_config)
     job.result()
-    print("¡Proceso completado con éxito!")
+    print("¡Éxito!")
 
 if __name__ == "__main__":
-    run_incremental_extraction()
+    run_pipeline()

@@ -28,8 +28,17 @@ def load_ticker(ticker):
     df = yf.download(ticker, period="5d", interval="1d")
     df.reset_index(inplace=True)
 
-    # FIX MultiIndex
-    df.columns = [col[0].lower() if isinstance(col, tuple) else col.lower() for col in df.columns]
+    
+    df = df.rename(columns={
+        "Date": "date",
+        "Open": "open",
+        "High": "high",
+        "Low": "low",
+        "Close": "close",
+        "Volume": "volume"
+    })
+
+    df.columns = [col.lower() for col in df.columns]
 
     df["ticker"] = ticker
 

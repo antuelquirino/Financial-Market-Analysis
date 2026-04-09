@@ -38,13 +38,13 @@ def run_incremental_extraction():
     
     # Handle multi-index if necessary and format dataframe
     df = df['Close'].stack().reset_index()
-    df.columns = ['date', 'ticker', 'close']
+    df.columns = ['date', 'ticker', 'open', 'high', 'low', 'close', 'volume']
     
     # Remove timezone for BigQuery compatibility
     df['date'] = pd.to_datetime(df['date']).dt.tz_localize(None)
 
     job_config = bigquery.LoadJobConfig(
-        write_disposition="WRITE_TRUNCATE",
+        write_disposition="WRITE_APPEND",
     )
 
     print(f"📤 Uploading data to {TABLE_ID}...")

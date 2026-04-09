@@ -2,12 +2,14 @@
     materialized='view'
 ) }}
 
--- Staging table for market prices
--- Solo pedimos lo que realmente se cargó en BigQuery para evitar errores
 
-SELECT
+
+select
     `date`,
     ticker,
-    close
-FROM 
-    {{ source('raw_finance', 'market_prices') }}
+    high,
+    low,
+    close,
+    volume
+from
+    raw_finance.market_prices

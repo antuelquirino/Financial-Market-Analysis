@@ -25,31 +25,26 @@ def get_client():
         return bigquery.Client(project=PROJECT_ID)
 
 def load_ticker(ticker):
+    # Descargamos 5 años de datos
+    df = yf.download(ticker, period="5y", interval="1d")
     
-    df = yf.download(ticker, period="5y", interval="1d") 
-    
-    
+    # FIX: Si yfinance devuelve MultiIndex (ej. Price y Ticker), lo aplanamos
     if isinstance(df.columns, pd.MultiIndex):
         df.columns = df.columns.get_level_values(0)
     
     df.reset_index(inplace=True)
 
-   
+    # Pasamos columnas a minúsculas (ahora que el índice es simple, .str funcionará)
     df.columns = [col.lower() for col in df.columns]
-    
-    
+
+    # Mapeo de seguridad por si las columnas vienen como 'adj close'
     df = df.rename(columns={
-        "date": "date",
-        "open": "open",
-        "high": "high",
-        "low": "low",
-        "close": "close",
-        "adj close": "close", 
-        "volume": "volume"
+        "adj close": "close"
     })
 
     df["ticker"] = ticker
 
+    # Retornamos el set completo de columnas para que dbt no falle
     return df[["date", "ticker", "open", "high", "low", "close", "volume"]]
 
 def run_incremental_extraction():
@@ -59,29 +54,30 @@ def run_incremental_extraction():
     for ticker in TICKERS:
         print(f"Descargando {ticker}...")
         try:
-            dfs.append(load_ticker(ticker))
+            data = load_ticker(ticker)
+            if not data.empty:
+                dfs.append(data)
         except Exception as e:
-            print(f"Error descargando {ticker}: {e}")
+            print(f"Error con {ticker}: {e}")
 
     if not dfs:
-        print("No se descargaron datos.")
         return
 
     df = pd.concat(dfs, ignore_index=True)
 
-   
+    # Limpieza de fechas para BigQuery
     df['date'] = pd.to_datetime(df['date']).dt.tz_localize(None)
     df.drop_duplicates(subset=["ticker", "date"], inplace=True)
 
-    
+    # TRUNCATE es clave: borra lo viejo y sube los 5 años limpios
     job_config = bigquery.LoadJobConfig(
         write_disposition="WRITE_TRUNCATE",
     )
 
-    print(f"Cargando datos en {TABLE_ID}...")
+    print(f"Subiendo datos a BigQuery ({TABLE_ID})...")
     job = client.load_table_from_dataframe(df, TABLE_ID, job_config=job_config)
     job.result()
-    print("Carga finalizada con éxito.")
+    print("¡Proceso completado con éxito!")
 
 if __name__ == "__main__":
     run_incremental_extraction()

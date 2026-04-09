@@ -44,7 +44,7 @@ def run_incremental_extraction():
     df.drop_duplicates(subset=["ticker", "date"], inplace=True)
 
     job_config = bigquery.LoadJobConfig(
-        write_disposition="WRITE_TRUNCATE",
+        write_disposition="WRITE_APPEND",
     )
 
     job = client.load_table_from_dataframe(df, TABLE_ID, job_config=job_config)

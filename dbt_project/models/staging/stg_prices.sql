@@ -11,10 +11,3 @@ SELECT
     close
 FROM 
     {{ source('raw_finance', 'market_prices') }}
-
-
-
-
-
-
-

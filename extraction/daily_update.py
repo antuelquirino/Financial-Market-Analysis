@@ -25,20 +25,28 @@ def get_client():
         return bigquery.Client(project=PROJECT_ID)
 
 def load_ticker(ticker):
-    df = yf.download(ticker, period="5d", interval="1d")
+    
+    df = yf.download(ticker, period="5y", interval="1d") 
+    
+    
+    if isinstance(df.columns, pd.MultiIndex):
+        df.columns = df.columns.get_level_values(0)
+    
     df.reset_index(inplace=True)
 
+   
+    df.columns = [col.lower() for col in df.columns]
+    
     
     df = df.rename(columns={
-        "Date": "date",
-        "Open": "open",
-        "High": "high",
-        "Low": "low",
-        "Close": "close",
-        "Volume": "volume"
+        "date": "date",
+        "open": "open",
+        "high": "high",
+        "low": "low",
+        "close": "close",
+        "adj close": "close", 
+        "volume": "volume"
     })
-
-    df.columns = [col.lower() for col in df.columns]
 
     df["ticker"] = ticker
 
@@ -49,19 +57,31 @@ def run_incremental_extraction():
     
     dfs = []
     for ticker in TICKERS:
-        dfs.append(load_ticker(ticker))
+        print(f"Descargando {ticker}...")
+        try:
+            dfs.append(load_ticker(ticker))
+        except Exception as e:
+            print(f"Error descargando {ticker}: {e}")
+
+    if not dfs:
+        print("No se descargaron datos.")
+        return
 
     df = pd.concat(dfs, ignore_index=True)
 
+   
     df['date'] = pd.to_datetime(df['date']).dt.tz_localize(None)
     df.drop_duplicates(subset=["ticker", "date"], inplace=True)
 
+    
     job_config = bigquery.LoadJobConfig(
-        write_disposition="WRITE_APPEND",
+        write_disposition="WRITE_TRUNCATE",
     )
 
+    print(f"Cargando datos en {TABLE_ID}...")
     job = client.load_table_from_dataframe(df, TABLE_ID, job_config=job_config)
     job.result()
+    print("Carga finalizada con éxito.")
 
 if __name__ == "__main__":
     run_incremental_extraction()

@@ -8,7 +8,6 @@
 select
     `date`,
     ticker,
-    open,
     high,
     low,
     close,

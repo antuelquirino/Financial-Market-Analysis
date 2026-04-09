@@ -34,10 +34,10 @@ def run_incremental_extraction():
     client = get_client()
     
     print(f"📥 Downloading data for: {TICKERS}")
-    df = yf.download(TICKERS, period="5d", interval="1d", auto_adjust=True)
-    
-    # Handle multi-index if necessary and format dataframe
-    df = df['Close'].stack().reset_index()
+    df = yf.download(TICKERS, period="5d", interval="1d")
+
+    df = df.stack(level=1).reset_index()
+
     df.columns = ['date', 'ticker', 'open', 'high', 'low', 'close', 'volume']
     
     # Remove timezone for BigQuery compatibility

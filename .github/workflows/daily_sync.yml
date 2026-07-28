@@ -26,6 +26,11 @@ jobs:
           GCP_SA_KEY_JSON: ${{ secrets.GCP_SA_KEY }}
         run: python extraction/daily_update.py
 
+      - name: Run Metadata Extraction
+        env:
+          GCP_SA_KEY_JSON: ${{ secrets.GCP_SA_KEY }}
+        run: python extraction/extract_metadata.py
+
       - name: Run dbt transformation
         env:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}

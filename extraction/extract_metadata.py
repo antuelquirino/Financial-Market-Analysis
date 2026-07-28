@@ -5,6 +5,9 @@
 import pandas as pd
 import yfinance as yf
 from google.cloud import bigquery
+from google.oauth2 import service_account
+import os
+import json
 
 # =====================================================
 # 2. Config
@@ -27,7 +30,15 @@ TICKERS = {
 # =====================================================
 # 3. BigQuery client
 # =====================================================
-client = bigquery.Client(project=PROJECT_ID)
+def get_client():
+    key_json = os.environ.get('GCP_SA_KEY_JSON')
+    if key_json:
+        info = json.loads(key_json)
+        credentials = service_account.Credentials.from_service_account_info(info)
+        return bigquery.Client(credentials=credentials, project=PROJECT_ID)
+    return bigquery.Client(project=PROJECT_ID)
+
+client = get_client()
 TABLE_ID = f"{PROJECT_ID}.{DATASET}.{TABLE}"
 
 # =====================================================
@@ -78,8 +89,4 @@ job.result()
 
 print(f"Loaded {len(df_metadata)} rows into {TABLE_ID}")
 
-
 # %%
-
-
-

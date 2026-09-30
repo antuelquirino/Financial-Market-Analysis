@@ -1,9 +1,7 @@
-﻿import pandas as pd
+import pandas as pd
 import yfinance as yf
 from google.cloud import bigquery
-from google.oauth2 import service_account
 import os
-import json
 
 PROJECT_ID = "financial-market-analysis"
 DATASET = "raw_finance"
@@ -13,11 +11,7 @@ START_DATE = "2021-01-01"
 TICKERS = ["AAPL", "AMZN", "NVDA", "XOM", "CVX", "JPM", "C", "^GSPC"]
 
 def get_client():
-    key_json = os.environ.get('GCP_SA_KEY_JSON')
-    if key_json:
-        info = json.loads(key_json)
-        credentials = service_account.Credentials.from_service_account_info(info)
-        return bigquery.Client(credentials=credentials, project=PROJECT_ID)
+    # Application Default Credentials: gcloud locally, Workload Identity Federation in CI.
     return bigquery.Client(project=PROJECT_ID)
 
 def load_market_data(ticker, start):

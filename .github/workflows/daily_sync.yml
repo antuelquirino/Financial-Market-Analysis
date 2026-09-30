@@ -2,8 +2,12 @@ name: Daily Financial Data Sync
 
 on:
   schedule:
-    - cron: '0 0 * * *' 
-  workflow_dispatch: 
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write # lets the job request a GitHub OIDC token for Workload Identity Federation
 
 jobs:
   build:
@@ -11,10 +15,16 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud (Workload Identity Federation)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
@@ -22,36 +32,14 @@ jobs:
         run: pip install pandas yfinance google-cloud-bigquery pandas-gbq db-dtypes dbt-bigquery
 
       - name: Run Daily Price Extraction
-        env:
-          GCP_SA_KEY_JSON: ${{ secrets.GCP_SA_KEY }}
         run: python extraction/daily_update.py
 
       - name: Run Metadata Extraction
-        env:
-          GCP_SA_KEY_JSON: ${{ secrets.GCP_SA_KEY }}
         run: python extraction/extract_metadata.py
 
       - name: Run dbt transformation
-        env:
-          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+        working-directory: dbt_project
         run: |
-          # Usamos Python para crear el archivo dbt, es más seguro que bash
-          python -c "import os, json; f=open('gcp_key.json', 'w'); json.dump(json.loads(os.environ['GCP_SA_KEY']), f)"
-          mkdir -p ~/.dbt
-          cat <<EOF > ~/.dbt/profiles.yml
-          market_pipeline:
-            target: prod
-            outputs:
-              prod:
-                type: bigquery
-                method: service-account
-                project: financial-market-analysis
-                dataset: analytics_finance
-                threads: 4
-                keyfile: $(pwd)/gcp_key.json
-                priority: interactive
-          EOF
-          cd dbt_project
           dbt clean
           dbt deps
           dbt run

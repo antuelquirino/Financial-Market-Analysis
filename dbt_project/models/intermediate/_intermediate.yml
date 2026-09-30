@@ -1,0 +1,48 @@
+version: 2
+
+models:
+  - name: int_price_metrics
+    description: >
+      Daily return, cumulative return since the first session, drawdown from the
+      running peak, and rolling volatility (1 month, 1 year) and Sharpe (1 year).
+      Windows and annualization come from vars in dbt_project.yml.
+    columns:
+      - name: daily_return
+        description: "Simple return: adj_close_t / adj_close_t-1 - 1. Null on the first session."
+      - name: drawdown
+        description: "adj_close / running max(adj_close) - 1. Between -1 and 0."
+      - name: rolling_volatility_1m
+        description: Annualized std of daily returns over the short window. Null until the window is full.
+      - name: rolling_volatility_1y
+        description: Annualized std of daily returns over the long window. Null until the window is full.
+      - name: rolling_sharpe_1y
+        description: Annualized Sharpe ratio over the long window.
+
+  - name: int_periods
+    description: Start and end date of each analysis period (1Y, 3Y, 5Y, MAX) per ticker.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [period, ticker]
+
+unit_tests:
+  - name: price_metrics_returns_and_drawdown
+    description: Returns, cumulative return and drawdown per ticker, including a recovery to a new peak.
+    model: int_price_metrics
+    given:
+      - input: ref('stg_prices')
+        rows:
+          - {ticker: AAA, date: 2024-01-02, adj_close: 100}
+          - {ticker: AAA, date: 2024-01-03, adj_close: 200}
+          - {ticker: AAA, date: 2024-01-04, adj_close: 100}
+          - {ticker: AAA, date: 2024-01-05, adj_close: 400}
+          - {ticker: BBB, date: 2024-01-02, adj_close: 50}
+          - {ticker: BBB, date: 2024-01-03, adj_close: 25}
+    expect:
+      rows:
+        - {ticker: AAA, date: 2024-01-02, daily_return: null, cum_return: 0, drawdown: 0}
+        - {ticker: AAA, date: 2024-01-03, daily_return: 1, cum_return: 1, drawdown: 0}
+        - {ticker: AAA, date: 2024-01-04, daily_return: -0.5, cum_return: 0, drawdown: -0.5}
+        - {ticker: AAA, date: 2024-01-05, daily_return: 3, cum_return: 3, drawdown: 0}
+        - {ticker: BBB, date: 2024-01-02, daily_return: null, cum_return: 0, drawdown: 0}
+        - {ticker: BBB, date: 2024-01-03, daily_return: -0.5, cum_return: -0.5, drawdown: -0.5}

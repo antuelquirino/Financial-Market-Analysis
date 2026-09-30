@@ -1,42 +1,90 @@
-name: Daily Financial Data Sync
+name: Daily market pipeline
 
 on:
   schedule:
-    - cron: '0 0 * * *'
+    # 22:30 UTC, Monday to Friday: 18:30 in New York during daylight saving time
+    # and 17:30 in winter, 1.5 to 2.5 hours after the 16:00 close. GitHub can
+    # start scheduled runs some minutes late.
+    - cron: '30 22 * * 1-5'
   workflow_dispatch:
+    inputs:
+      full_refresh:
+        description: Reload every ticker from the start of history
+        type: boolean
+        default: false
+
+# One run at a time. A new run waits instead of cancelling one mid-MERGE.
+concurrency:
+  group: daily-pipeline
+  cancel-in-progress: false
 
 permissions:
   contents: read
-  id-token: write # lets the job request a GitHub OIDC token for Workload Identity Federation
 
 jobs:
-  build:
+  pipeline:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write # GitHub OIDC token for Workload Identity Federation
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Authenticate to Google Cloud (Workload Identity Federation)
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: requirements-pipeline.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements-pipeline.txt
+
+      - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: pip install -r requirements-pipeline.txt
-
+      # Exits 1 only if nothing could be loaded. A partial run (some tickers
+      # failed) continues so dbt builds what did load, and fails at the end.
       - name: Extract prices
-        run: python -m extraction.pipeline
+        id: extract
+        env:
+          FULL_REFRESH: ${{ inputs.full_refresh && '--full-refresh' || '' }}
+        run: python -m extraction.pipeline $FULL_REFRESH
 
-      - name: Run dbt transformation
+      - name: Install dbt packages
         working-directory: dbt_project
+        run: dbt deps
+
+      # build = seeds + models + tests, in dependency order. A failing test
+      # skips the models downstream of it and fails the job.
+      - name: Build models and run tests
+        working-directory: dbt_project
+        run: dbt build
+
+      - name: Check source freshness
+        working-directory: dbt_project
+        run: dbt source freshness
+
+      - name: Fail if some tickers were not loaded
+        if: steps.extract.outputs.status != 'success'
         run: |
-          dbt clean
-          dbt deps
-          dbt run
+          echo "::error::Extraction finished with status '${{ steps.extract.outputs.status }}'. See the job summary."
+          exit 1
+
+  # GitHub disables scheduled workflows in public repositories after 60 days
+  # without activity. Re-enabling the workflow through the API resets that timer.
+  keepalive:
+    needs: pipeline
+    if: always() && github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Keep the schedule enabled
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api --method PUT "repos/${{ github.repository }}/actions/workflows/daily_sync.yml/enable"

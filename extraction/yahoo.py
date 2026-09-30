@@ -46,7 +46,7 @@ def fetch_with_retry(
     end: date,
     *,
     download: Callable[[str, date, date], pd.DataFrame] = download,
-    sleep: Callable[[float], None] = time.sleep,
+    sleep: Callable[[float], None] | None = None,
     attempts: int = config.MAX_ATTEMPTS,
     backoff: float = config.BACKOFF_SECONDS,
 ) -> pd.DataFrame:
@@ -55,6 +55,7 @@ def fetch_with_retry(
     The window always includes recent sessions, so an empty frame is never a
     valid answer: it is either transient or the ticker no longer exists.
     """
+    sleep = sleep or time.sleep
     last_error: Exception | None = None
     for attempt in range(1, attempts + 1):
         try:

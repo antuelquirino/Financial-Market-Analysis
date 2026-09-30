@@ -29,13 +29,10 @@ jobs:
           python-version: '3.11'
 
       - name: Install dependencies
-        run: pip install pandas yfinance google-cloud-bigquery pandas-gbq db-dtypes dbt-bigquery
+        run: pip install -r requirements-pipeline.txt
 
-      - name: Run Daily Price Extraction
-        run: python extraction/daily_update.py
-
-      - name: Run Metadata Extraction
-        run: python extraction/extract_metadata.py
+      - name: Extract prices
+        run: python -m extraction.pipeline
 
       - name: Run dbt transformation
         working-directory: dbt_project

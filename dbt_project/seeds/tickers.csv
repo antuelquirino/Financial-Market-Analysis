@@ -1,0 +1,21 @@
+ticker,name,asset_type,sector,industry,sector_etf
+AAPL,Apple Inc.,stock,Information Technology,"Technology Hardware, Storage & Peripherals",XLK
+AMZN,"Amazon.com, Inc.",stock,Consumer Discretionary,Broadline Retail,XLY
+NVDA,NVIDIA Corporation,stock,Information Technology,Semiconductors & Semiconductor Equipment,XLK
+XOM,Exxon Mobil Corporation,stock,Energy,"Oil, Gas & Consumable Fuels",XLE
+CVX,Chevron Corporation,stock,Energy,"Oil, Gas & Consumable Fuels",XLE
+JPM,JPMorgan Chase & Co.,stock,Financials,Banks,XLF
+C,Citigroup Inc.,stock,Financials,Banks,XLF
+XLB,Materials Select Sector SPDR Fund,sector_etf,Materials,,XLB
+XLC,Communication Services Select Sector SPDR Fund,sector_etf,Communication Services,,XLC
+XLE,Energy Select Sector SPDR Fund,sector_etf,Energy,,XLE
+XLF,Financial Select Sector SPDR Fund,sector_etf,Financials,,XLF
+XLI,Industrial Select Sector SPDR Fund,sector_etf,Industrials,,XLI
+XLK,Technology Select Sector SPDR Fund,sector_etf,Information Technology,,XLK
+XLP,Consumer Staples Select Sector SPDR Fund,sector_etf,Consumer Staples,,XLP
+XLRE,Real Estate Select Sector SPDR Fund,sector_etf,Real Estate,,XLRE
+XLU,Utilities Select Sector SPDR Fund,sector_etf,Utilities,,XLU
+XLV,Health Care Select Sector SPDR Fund,sector_etf,Health Care,,XLV
+XLY,Consumer Discretionary Select Sector SPDR Fund,sector_etf,Consumer Discretionary,,XLY
+SPY,SPDR S&P 500 ETF Trust,benchmark,,,
+^GSPC,S&P 500 Index,benchmark,,,

@@ -94,3 +94,27 @@ models:
     description: >
       Legacy view with the columns the Streamlit app and Tableau expect.
       volatility and sharpe_ratio are the 1-year rolling values.
+
+  - name: mart_pipeline_status
+    description: >
+      One row: the latest market session in the data, the last successful and
+      the last extraction run, and how many tickers are current.
+    data_tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "tickers_current <= tickers_expected"
+    columns:
+      - name: last_market_date
+        description: Latest session of the benchmark ticker. The dashboard shows "Data updated <date> market close".
+        data_tests: [not_null]
+      - name: last_successful_run_at
+        description: End of the latest extraction run with status success.
+      - name: last_run_status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [success, partial, failed]
+      - name: tickers_current
+        description: Tickers whose latest session is last_market_date.
+      - name: built_at
+        description: When dbt last rebuilt this table.

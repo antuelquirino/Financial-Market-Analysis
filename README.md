@@ -7,19 +7,43 @@ An automated market-data pipeline. Every weekday after the US close it pulls
 daily prices for 7 stocks, the 11 SPDR sector ETFs and two benchmarks from
 Yahoo Finance, loads them into BigQuery, and computes return and risk metrics
 with dbt: cumulative return, CAGR, volatility, drawdown, Sharpe ratio and beta,
-over 1, 3 and 5 years.
+over 1, 3 and 5 years. A FastAPI service serves the marts to a Next.js
+dashboard.
 
 > Not investment advice. The data comes from an unofficial source and is shown
 > for educational purposes.
 
-## Live dashboards
+## Dashboard
+
+Three screens share a global ticker and period selector, kept in the URL so
+any view can be shared as a link. Each opens with its finding as a sentence,
+and every comparison is against SPY over the same dates.
+
+| Overview | Risk | Sectors |
+|---|---|---|
+| ![Overview](docs/screenshots/overview.png) | ![Risk](docs/screenshots/risk.png) | ![Sectors](docs/screenshots/sectors.png) |
+
+- **Overview:** return, CAGR, volatility, max drawdown and Sharpe against
+  SPY; cumulative return against the benchmark; when the data was last updated.
+- **Risk:** the deepest fall with its peak, trough and recovery dates;
+  drawdown over time; rolling 1-month and 1-year volatility; the distribution
+  of daily returns.
+- **Sectors:** the 11 SPDR sector ETFs on a risk-return scatter and in a
+  sortable table.
+
+The dashboard reuses InsightFlow's design system ("an analyst's report") with
+its own cobalt accent. Its rules and components are documented at
+`/styleguide`. The Next.js dashboard runs locally for now; publishing it is
+Phase 3.
+
+### Earlier dashboards
+
+These stay online until the new dashboard is published.
 
 - **Streamlit app:** [financial-market-analysis.streamlit.app](https://financial-market-analysis-eebjsbfnfsd57txv6wrgra.streamlit.app/),
   with performance and rolling risk per ticker.
 - **Tableau Public:** [Performance vs. Benchmark](https://public.tableau.com/app/profile/antuel.quirino/viz/Perfomancevs_Benchmark/Dashboard1),
   a sector comparison.
-
-A FastAPI + Next.js frontend is in progress and will replace the Streamlit app.
 
 ## Architecture
 
@@ -31,7 +55,9 @@ flowchart LR
     S --> D
     R --> D[dbt<br/>staging → intermediate → marts]
     D --> M[(analytics_finance<br/>marts)]
-    M --> ST[Streamlit / Tableau]
+    M --> A[api/<br/>FastAPI, 1-hour cache]
+    A --> W[web/<br/>Next.js dashboard]
+    M --> ST[Streamlit / Tableau<br/>legacy]
     GA[GitHub Actions<br/>weekdays 22:30 UTC] -. runs .-> E
     GA -. runs .-> D
 ```
@@ -41,7 +67,9 @@ flowchart LR
 | **Extraction** (`extraction/`) | Downloads daily OHLCV per ticker, validates it, and upserts it into `raw_finance.daily_prices`. Logs every run to `raw_finance.pipeline_runs`. |
 | **Staging** | Typed views over the sources and the ticker seed. |
 | **Intermediate** | `int_price_metrics` (daily return, cumulative return, drawdown, rolling volatility and Sharpe) and `int_periods` (1Y/3Y/5Y/MAX windows). |
-| **Marts** | `mart_daily_metrics` (time series with the benchmark), `mart_period_series` (series re-based to each period's start), `mart_period_metrics` (headline metrics per ticker and period), `mart_pipeline_status` (data freshness). `mart_prices` is a legacy table for Streamlit and Tableau. |
+| **Marts** | `mart_daily_metrics` (time series with the benchmark), `mart_period_series` (series re-based to each period's start), `mart_period_metrics` (headline metrics per ticker and period), `mart_pipeline_status` (data freshness), `dim_tickers` (the ticker list). `mart_prices` is a legacy table for Streamlit and Tableau. |
+| **API** (`api/`) | FastAPI over the marts only: fixed SQL with bound parameters, inputs validated with Pydantic, `maximum_bytes_billed` on every query, results cached in memory for an hour, CORS limited to the frontend. |
+| **Web** (`web/`) | Next.js (App Router) server components that call the API; the browser never talks to BigQuery or the API directly. |
 
 The ticker universe lives in one file,
 [`dbt_project/seeds/tickers.csv`](dbt_project/seeds/tickers.csv). The
@@ -127,8 +155,25 @@ Safeguards:
   public repository. A `keepalive` job re-enables the workflow through the API
   on every run to prevent that.
 
-[`tests.yml`](.github/workflows/tests.yml) runs pytest and `dbt parse` on every
-push to `main` and every pull request.
+[`tests.yml`](.github/workflows/tests.yml) runs pytest and `dbt parse`, and
+lints, type-checks, tests and builds the frontend, on every push to `main` and
+every pull request.
+
+## API
+
+Interactive docs at `/docs` when the API is running.
+
+| Endpoint | Returns | Reads |
+|---|---|---|
+| `GET /health` | `ok` (no BigQuery call) | — |
+| `GET /status` | Latest market session, last successful run, tickers up to date | `mart_pipeline_status` |
+| `GET /tickers` | Tickers with type, sector and history range | `dim_tickers` |
+| `GET /performance/{ticker}?period=1Y` | Period metrics and cumulative return against SPY | `mart_period_metrics`, `mart_period_series` |
+| `GET /risk/{ticker}?period=1Y` | Period metrics, drawdown series, rolling volatility, distribution of daily returns | `mart_period_metrics`, `mart_period_series`, `mart_daily_metrics` |
+| `GET /sectors?period=1Y` | The 11 sector ETFs and SPY over the period | `mart_period_metrics` |
+
+`period` is one of `1Y`, `3Y`, `5Y`, `MAX`. An unknown ticker is a 404, an
+invalid period a 422, and a BigQuery failure a 502 without internal details.
 
 ## Run it from scratch
 
@@ -148,7 +193,13 @@ python -m extraction.pipeline                  # first run backfills from 2021
 cd dbt_project && dbt deps && dbt build        # models + tests
 dbt source freshness
 
-pytest                                         # extraction tests, no network needed
+pytest                                         # extraction and API tests, no network needed
+
+# API on port 8765 (Windows reserves 8000 on some machines)
+uvicorn api.main:app --reload --port 8765
+
+# Dashboard on http://localhost:3000 (Node 24)
+cd web && cp .env.example .env.local && npm install && npm run dev
 ```
 
 Use another project with `GCP_PROJECT=<project-id>`. Reload all history with
@@ -166,8 +217,10 @@ repository variables.
 | Warehouse | Google BigQuery (US) |
 | Transformation | dbt Core + dbt-bigquery, dbt_utils |
 | Orchestration | GitHub Actions + Workload Identity Federation |
-| Testing | pytest, dbt data tests, dbt unit tests |
-| Visualization | Streamlit, Tableau Public (Next.js in progress) |
+| API | FastAPI, Pydantic |
+| Frontend | Next.js 16, React 19, Tailwind CSS 4, Recharts, Tremor Raw components |
+| Testing | pytest, dbt data and unit tests, Vitest |
+| Legacy visualization | Streamlit, Tableau Public |
 
 ---
 

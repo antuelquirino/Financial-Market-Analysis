@@ -1,2 +1,4 @@
 -r requirements-pipeline.txt
+-r api/requirements.txt
 pytest==9.1.1
+httpx>=0.27,<1  # FastAPI's TestClient

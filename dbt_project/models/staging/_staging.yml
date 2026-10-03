@@ -1,0 +1,43 @@
+version: 2
+
+seeds:
+  - name: tickers
+    description: >
+      The ticker universe: 7 stocks, the 11 SPDR sector ETFs and two benchmarks.
+      The extraction reads this file too, so adding a row here is all it takes
+      to track a new ticker.
+    columns:
+      - name: ticker
+        data_tests: [not_null, unique]
+      - name: asset_type
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [stock, sector_etf, benchmark]
+      - name: sector
+        description: GICS sector. Empty for benchmarks.
+      - name: sector_etf
+        description: SPDR ETF of the ticker's sector (a sector ETF points to itself).
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('tickers')
+                field: ticker
+
+models:
+  - name: stg_prices
+    description: Daily prices. `adj_close` is adjusted for splits and dividends; returns use it.
+    columns:
+      - name: ticker
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('stg_tickers')
+                field: ticker
+
+  - name: stg_tickers
+    description: Ticker attributes from the seed.
+
+  - name: stg_pipeline_runs
+    description: Extraction runs with counts instead of arrays.

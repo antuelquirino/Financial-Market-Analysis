@@ -1,36 +1,43 @@
-
-# Name your project! Project names should contain only lowercase characters
-# and underscores. A good package name should reflect your organization's
-# name or the intended use of these models
-name: 'market_pipeline'
+name: market_pipeline
 version: '1.0.0'
+profile: market_pipeline
 
-# This setting configures which "profile" dbt uses for this project.
-profile: 'market_pipeline'
-
-# These configurations specify where dbt should look for different types of files.
-# The `model-paths` config, for example, states that models in this project can be
-# found in the "models/" directory. You probably won't need to change these!
 model-paths: ["models"]
-analysis-paths: ["analyses"]
-test-paths: ["tests"]
 seed-paths: ["seeds"]
+test-paths: ["tests"]
 macro-paths: ["macros"]
-snapshot-paths: ["snapshots"]
 
-clean-targets:         # directories to be removed by `dbt clean`
-  - "target"
-  - "dbt_packages"
+clean-targets: ["target", "dbt_packages"]
 
+# Financial assumptions. Every formula reads them from here (see macros/finance.sql).
+vars:
+  # Annual risk-free rate for Sharpe ratios (approx. 3-month US T-bill), as a fraction.
+  risk_free_rate_annual: 0.04
+  # Trading sessions per year, used to annualize daily volatility and returns.
+  trading_days_per_year: 252
+  # Rolling windows, in trading sessions (21 ~ 1 month, 252 ~ 1 year).
+  short_window_days: 21
+  long_window_days: 252
+  # Total-return benchmark. SPY's adjusted close includes dividends, like the
+  # stocks' and sector ETFs'; the ^GSPC index does not.
+  benchmark_ticker: SPY
 
-# Configuring models
-# Full documentation: https://docs.getdbt.com/docs/configuring-models
-
-# In this example config, we tell dbt to build all models in the example/
-# directory as views. These settings can be overridden in the individual model
-# files using the `{{ config(...) }}` macro.
 models:
   market_pipeline:
-    # Config indicated by + and applies to all files under models/example/
-    example:
+    staging:
       +materialized: view
+    intermediate:
+      +materialized: view
+    marts:
+      +materialized: table
+
+seeds:
+  market_pipeline:
+    tickers:
+      +column_types:
+        ticker: string
+        name: string
+        asset_type: string
+        sector: string
+        industry: string
+        sector_etf: string

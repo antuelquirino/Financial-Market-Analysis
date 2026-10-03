@@ -1,0 +1,17 @@
+# No secrets here: `oauth` uses Application Default Credentials.
+# - Locally: `gcloud auth application-default login`
+# - GitHub Actions: google-github-actions/auth (Workload Identity Federation)
+market_pipeline:
+  target: prod
+  outputs:
+    prod:
+      type: bigquery
+      method: oauth
+      project: "{{ env_var('GCP_PROJECT', 'financial-market-analysis') }}"
+      dataset: analytics_finance
+      location: US
+      threads: 4
+      priority: interactive
+      job_execution_timeout_seconds: 300
+      # Hard cap per query: a runaway query fails instead of billing.
+      maximum_bytes_billed: 1000000000

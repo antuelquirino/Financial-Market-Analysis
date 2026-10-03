@@ -1,0 +1,33 @@
+# Private working notes (prompts for Claude)
+prompt/
+
+# Credentials — never commit
+*.json.key
+*-key.json
+gcp_key.json
+.streamlit/secrets.toml
+.env
+.env.*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# dbt
+dbt_project/target/
+dbt_project/dbt_packages/
+dbt_project/logs/
+logs/
+
+# Node / Next.js (Phase 2)
+node_modules/
+.next/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/

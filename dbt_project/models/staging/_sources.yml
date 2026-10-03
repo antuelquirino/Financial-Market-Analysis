@@ -1,0 +1,47 @@
+version: 2
+
+sources:
+  - name: raw_finance
+    description: Written by the Python extraction (extraction/pipeline.py).
+    tables:
+      - name: daily_prices
+        description: Daily OHLCV from Yahoo Finance, one row per (ticker, date).
+        # Market data, not load time: the newest session must be recent. A
+        # Friday session is ~4 days old at Monday's run, 5 with a Monday holiday.
+        config:
+          loaded_at_field: "timestamp(date)"
+          freshness:
+            warn_after: {count: 4, period: day}
+            error_after: {count: 6, period: day}
+        data_tests:
+          - dbt_utils.unique_combination_of_columns:
+              arguments:
+                combination_of_columns: [ticker, date]
+        columns:
+          - name: ticker
+            data_tests: [not_null]
+          - name: date
+            data_tests: [not_null]
+          - name: adj_close
+            data_tests:
+              - not_null
+              - dbt_utils.accepted_range:
+                  arguments:
+                    min_value: 0
+                    inclusive: false
+
+      - name: pipeline_runs
+        description: One row per extraction run, with its status and tickers.
+        config:
+          loaded_at_field: started_at
+          freshness:
+            warn_after: {count: 4, period: day}
+            error_after: {count: 6, period: day}
+        columns:
+          - name: run_id
+            data_tests: [not_null, unique]
+          - name: status
+            data_tests:
+              - accepted_values:
+                  arguments:
+                    values: [success, partial, failed]

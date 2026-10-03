@@ -1,90 +1,22 @@
-{{ config(materialized='table') }}
+{{ config(materialized='table', cluster_by=['ticker']) }}
 
--- 1. Source and Intermediate Model References
-with p as (
-    select 
-        `date`, 
-        ticker, 
-        close as price
-    from {{ ref('stg_prices') }}
-),
+-- Legacy interface for the Streamlit app and Tableau, same columns as before.
+-- Remove once the Next.js frontend replaces Streamlit (Phase 3).
 
-r as (
-    select 
-        `date`, 
-        ticker, 
-        daily_return
-    from {{ ref('i_returns') }}
-),
-
-c as (
-    select 
-        `date`, 
-        ticker, 
-        cum_return
-    from {{ ref('i_cumulative') }}
-),
-
-v as (
-    select 
-        `date`, 
-        ticker, 
-        volatility
-    from {{ ref('i_volatility') }}
-),
-
-d as (
-    select 
-        `date`, 
-        ticker, 
-        drawdown
-    from {{ ref('i_drawdown') }}
-),
-
-s as (
-    select 
-        `date`, 
-        ticker, 
-        sharpe_ratio
-    from {{ ref('i_sharpe') }}
-),
-
-cagr as (
-    select 
-        ticker, 
-        cagr
-    from {{ ref('i_cagr') }}
-),
-
-meta as (
-    select 
-        ticker, 
-        company_name, 
-        sector, 
-        industry
-    from {{ ref('stg_metadata') }}
-)
-
--- 2. Final metrics consolidation and entity enrichment
 select
-    p.`date`,
-    p.ticker,
-    meta.company_name,
-    meta.sector,
-    meta.industry,
-    p.price,
-    r.daily_return,
-    c.cum_return,
-    v.volatility,
+    d.date,
+    d.ticker,
+    t.name as company_name,
+    t.sector,
+    t.industry,
+    d.adj_close as price,
+    d.daily_return,
+    d.cum_return,
+    d.rolling_volatility_1y as volatility,
     d.drawdown,
-    s.sharpe_ratio,
-    cagr.cagr
-from p
-left join r    on p.`date` = r.`date` and p.ticker = r.ticker
-left join c    on p.`date` = c.`date` and p.ticker = c.ticker
-left join v    on p.`date` = v.`date` and p.ticker = v.ticker
-left join d    on p.`date` = d.`date` and p.ticker = d.ticker
-left join s    on p.`date` = s.`date` and p.ticker = s.ticker
-left join cagr on p.ticker = cagr.ticker
-left join meta on p.ticker = meta.ticker
-order by p.ticker, p.`date`
+    d.rolling_sharpe_1y as sharpe_ratio,
+    m.cagr
+from {{ ref('mart_daily_metrics') }} d
+join {{ ref('stg_tickers') }} t using (ticker)
+left join {{ ref('mart_period_metrics') }} m
+    on m.ticker = d.ticker and m.period = 'MAX'

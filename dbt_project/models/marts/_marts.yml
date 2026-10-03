@@ -1,0 +1,120 @@
+version: 2
+
+models:
+  - name: mart_daily_metrics
+    description: >
+      One row per ticker and session: adjusted price, returns, drawdown from the
+      all-time peak, rolling risk, and the benchmark (var benchmark_ticker) on the
+      same row. Source for time-series charts.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [ticker, date]
+    columns:
+      - name: ticker
+        data_tests: [not_null]
+      - name: date
+        data_tests: [not_null]
+      - name: adj_close
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+                inclusive: false
+      - name: drawdown
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: -1
+                max_value: 0
+      - name: rolling_volatility_1y
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+
+  - name: mart_period_series
+    description: >
+      Each ticker's cumulative return and drawdown re-based to the start of each
+      period (1Y, 3Y, 5Y, MAX), next to the benchmark re-based to the same date.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [period, ticker, date]
+    columns:
+      - name: drawdown
+        description: Price over its highest level since the period started, minus 1.
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: -1
+                max_value: 0
+
+  - name: mart_period_metrics
+    description: Return, risk and benchmark comparison per ticker and period.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [period, ticker]
+    columns:
+      - name: period
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['1Y', '3Y', '5Y', 'MAX']
+      - name: total_return
+        description: End price over start price, minus 1.
+        data_tests: [not_null]
+      - name: cagr
+        description: (1 + total_return) ^ (365.25 / calendar days) - 1.
+      - name: volatility
+        description: Annualized std of daily returns within the period.
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: 0
+      - name: max_drawdown
+        description: Deepest peak-to-trough fall within the period.
+        data_tests:
+          - dbt_utils.accepted_range:
+              arguments:
+                min_value: -1
+                max_value: 0
+      - name: sharpe_ratio
+        description: (mean daily return - risk-free daily) / std, times sqrt(trading days).
+      - name: beta
+        description: Covariance with the benchmark's daily returns over the benchmark's variance.
+      - name: excess_return
+        description: total_return - benchmark_total_return.
+      - name: has_full_history
+        description: False when the ticker has less history than the period.
+
+  - name: mart_prices
+    description: >
+      Legacy table with the columns the Streamlit app and Tableau expect.
+      volatility and sharpe_ratio are the 1-year rolling values.
+
+  - name: mart_pipeline_status
+    description: >
+      One row: the latest market session in the data, the last successful and
+      the last extraction run, and how many tickers are current.
+    data_tests:
+      - dbt_utils.expression_is_true:
+          arguments:
+            expression: "tickers_current <= tickers_expected"
+    columns:
+      - name: last_market_date
+        description: Latest session of the benchmark ticker. The dashboard shows "Data updated <date> market close".
+        data_tests: [not_null]
+      - name: last_successful_run_at
+        description: End of the latest extraction run with status success.
+      - name: last_run_status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [success, partial, failed]
+      - name: tickers_current
+        description: Tickers whose latest session is last_market_date.
+      - name: built_at
+        description: When dbt last rebuilt this table.

@@ -1,0 +1,155 @@
+@import "tailwindcss";
+@plugin "@tailwindcss/forms";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+  Financial Market design tokens: "an analyst's report", the system shared with
+  InsightFlow, with cobalt as this project's accent.
+
+  Every color is defined once per mode here and used by role (bg-paper,
+  text-ink, border-rule, ...). Components never pick a light and a dark shade;
+  the .dark class swaps the values. To re-brand, change this block only.
+
+  Data colors (--series-*) were validated with the dataviz palette validator
+  (colorblind separation, lightness band, chroma, 3:1 contrast) in both modes;
+  keep their order, it is what keeps neighbors distinguishable.
+*/
+:root {
+  color-scheme: light;
+
+  /* Surfaces */
+  --paper: #f5f3ee; /* page background */
+  --surface: #fdfcf9; /* panels, charts, inputs */
+  --wash: #eeebe3; /* hover and subtle fills */
+
+  /* Ink */
+  --ink: #1f1d19; /* primary text */
+  --graphite: #5b564c; /* secondary text */
+  --muted: #726c60; /* axis labels, captions (4.5:1 on paper) */
+  --rule: #e3dfd4; /* hairlines and borders */
+
+  /* Accent: what the reader should look at */
+  --cobalt: #2d5b9a;
+  --on-cobalt: #ffffff;
+  --highlight: #d9e4f5; /* the marker behind a key figure */
+
+  /* Semantic: only for "improves" and "worsens", always with arrow and sign */
+  --gain: #1b7342;
+  --loss: #b3372a;
+
+  /* Data series, in this fixed order */
+  --series-1: #2d5b9a; /* cobalt */
+  --series-2: #a86422; /* ochre */
+  --series-3: #1a9aa0; /* teal */
+  --series-4: #8e3c89; /* plum */
+  --series-muted: #b7b0a2; /* context series next to the highlighted one */
+}
+
+.dark {
+  color-scheme: dark;
+
+  --paper: #1a1916;
+  --surface: #24221e;
+  --wash: #2e2b26;
+
+  --ink: #f2eee6;
+  --graphite: #bbb3a4;
+  --muted: #968f81;
+  --rule: #3a3731;
+
+  --cobalt: #5b8fe0;
+  --on-cobalt: #1a1916;
+  --highlight: #1f3a5f;
+
+  --gain: #5cc48a;
+  --loss: #f07a67;
+
+  --series-1: #5b8fe0;
+  --series-2: #d57c11;
+  --series-3: #1faaa4;
+  --series-4: #a947a3;
+  --series-muted: #5d584f;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-wash: var(--wash);
+  --color-ink: var(--ink);
+  --color-graphite: var(--graphite);
+  --color-muted: var(--muted);
+  --color-rule: var(--rule);
+  --color-cobalt: var(--cobalt);
+  --color-on-cobalt: var(--on-cobalt);
+  --color-highlight: var(--highlight);
+  --color-gain: var(--gain);
+  --color-loss: var(--loss);
+  --color-series-1: var(--series-1);
+  --color-series-2: var(--series-2);
+  --color-series-3: var(--series-3);
+  --color-series-4: var(--series-4);
+  --color-series-muted: var(--series-muted);
+
+  /* IBM Plex Sans for the interface and every number; Newsreader only for findings */
+  --font-sans: var(--font-plex), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-newsreader), ui-serif, Georgia, serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+@theme {
+  /* Type scale (size / line height). Body text uses text-sm (14px). */
+  --text-finding-lead: 2rem;
+  --text-finding-lead--line-height: 1.2;
+  --text-finding: 1.25rem;
+  --text-finding--line-height: 1.35;
+  --text-kpi: 1.75rem;
+  --text-kpi--line-height: 1.1;
+}
+
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--rule);
+  }
+
+  body {
+    background-color: var(--paper);
+    color: var(--ink);
+  }
+
+  ::selection {
+    background-color: var(--highlight);
+    color: var(--ink);
+  }
+}
+
+@layer components {
+  /* The one bold element: a marker stroke under the key figure of a finding. */
+  .marker {
+    background: linear-gradient(
+      transparent 52%,
+      var(--highlight) 52%,
+      var(--highlight) 90%,
+      transparent 90%
+    );
+    color: inherit;
+    padding-inline: 0.15em;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
+  }
+}
+
+/* Motion only answers user actions, and not even that when the user asks for less. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

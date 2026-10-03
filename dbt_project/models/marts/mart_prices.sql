@@ -1,4 +1,4 @@
-{{ config(materialized='view') }}
+{{ config(materialized='table', cluster_by=['ticker']) }}
 
 -- Legacy interface for the Streamlit app and Tableau, same columns as before.
 -- Remove once the Next.js frontend replaces Streamlit (Phase 3).

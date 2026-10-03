@@ -92,7 +92,7 @@ models:
 
   - name: mart_prices
     description: >
-      Legacy view with the columns the Streamlit app and Tableau expect.
+      Legacy table with the columns the Streamlit app and Tableau expect.
       volatility and sharpe_ratio are the 1-year rolling values.
 
   - name: mart_pipeline_status

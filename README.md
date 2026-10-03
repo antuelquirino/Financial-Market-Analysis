@@ -41,7 +41,7 @@ flowchart LR
 | **Extraction** (`extraction/`) | Downloads daily OHLCV per ticker, validates it, and upserts it into `raw_finance.daily_prices`. Logs every run to `raw_finance.pipeline_runs`. |
 | **Staging** | Typed views over the sources and the ticker seed. |
 | **Intermediate** | `int_price_metrics` (daily return, cumulative return, drawdown, rolling volatility and Sharpe) and `int_periods` (1Y/3Y/5Y/MAX windows). |
-| **Marts** | `mart_daily_metrics` (time series with the benchmark), `mart_period_series` (series re-based to each period's start), `mart_period_metrics` (headline metrics per ticker and period), `mart_pipeline_status` (data freshness). `mart_prices` is a legacy view for Streamlit and Tableau. |
+| **Marts** | `mart_daily_metrics` (time series with the benchmark), `mart_period_series` (series re-based to each period's start), `mart_period_metrics` (headline metrics per ticker and period), `mart_pipeline_status` (data freshness). `mart_prices` is a legacy table for Streamlit and Tableau. |
 
 The ticker universe lives in one file,
 [`dbt_project/seeds/tickers.csv`](dbt_project/seeds/tickers.csv). The

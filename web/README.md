@@ -1,24 +1,24 @@
-# InsightFlow web
+# Financial Market web
 
-The one-page dashboard of InsightFlow, in Next.js 16 (App Router), React 19,
-Tailwind CSS 4 and Recharts. See the [project README](../README.md) for what it
-shows and how the pieces fit.
+The dashboard of Financial Market, in Next.js 16 (App Router), React 19,
+Tailwind CSS 4 and Recharts. See the [project README](../README.md) for what
+it shows and how the pieces fit.
 
 ```bash
-cp .env.example .env.local   # where the API is
+cp .env.example .env.local   # where the API is (http://localhost:8765)
 npm install
-npm run dev                  # http://localhost:3000 (English), /es (Spanish)
+npm run dev                  # http://localhost:3000
 npm test                     # unit tests (Vitest)
 npm run lint && npm run typecheck && npm run build
 ```
 
-- `src/app/`: the English (`/`) and Spanish (`/es`) pages, `/styleguide`, and
+- `src/app/`: the three screens (`/`, `/risk`, `/sectors`), `/styleguide`, and
   the design tokens in `globals.css`.
-- `src/components/dashboard/`: the page and its sections (server components,
-  each fetching its own data).
-- `src/components/insight/`: InsightFlow's components: lead finding, KPI strip,
-  charts, AI analyst, states and controls.
-- `src/components/`: base components from Tremor's open-source Dashboard
-  template (MIT, see `LICENSE.md`), restyled with the design tokens.
-- `src/lib/`: API client, formatting (`format.ts`, the only place numbers
-  become text), translations (`i18n.ts`) and data transformations.
+- `src/components/market/`: this project's components: header with the global
+  selection, lead finding, KPI strip, charts, sector table, states.
+- `src/components/`: Tremor Raw components (MIT, see `LICENSE.md`).
+- `src/lib/`: the API client and types, `format.ts` (the only place a number
+  becomes text), and one module per screen (`overview.ts`, `risk.ts`,
+  `sectors.ts`) with the sentences and data each one shows, all unit-tested.
+
+The design system is shared with InsightFlow; this project's accent is cobalt.

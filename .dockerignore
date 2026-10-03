@@ -1,0 +1,4 @@
+# Only the API goes into the image (see Dockerfile).
+*
+!api/
+api/**/__pycache__/

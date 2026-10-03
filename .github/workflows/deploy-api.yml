@@ -1,0 +1,98 @@
+name: Deploy API
+
+# Separate from the daily data pipeline. Runs when the API or its image change
+# on main: tests first, and only if they pass, build and deploy to Cloud Run.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'api/**'
+      - 'Dockerfile'
+      - '.dockerignore'
+      - '.github/workflows/deploy-api.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-api
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  PROJECT_ID: financial-market-analysis
+  REGION: us-central1
+  SERVICE: market-api
+  IMAGE: us-central1-docker.pkg.dev/financial-market-analysis/market/market-api
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: api/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r api/requirements.txt pytest httpx
+
+      - name: API tests
+        run: pytest tests/api
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write # GitHub OIDC token for Workload Identity Federation
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v3
+
+      - name: Build and push the image
+        run: |
+          gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+          docker build -t "${IMAGE}:${GITHUB_SHA}" .
+          docker push "${IMAGE}:${GITHUB_SHA}"
+
+      # Scale to zero when idle and at most 2 instances, so a traffic spike or
+      # abuse cannot run up the bill. The API runs as its own read-only account.
+      # "^@^" switches the env-var separator so ALLOWED_ORIGINS can hold commas.
+      - name: Deploy to Cloud Run
+        env:
+          ALLOWED_ORIGINS: ${{ vars.API_ALLOWED_ORIGINS }}
+        run: |
+          gcloud run deploy "${SERVICE}" \
+            --project "${PROJECT_ID}" \
+            --region "${REGION}" \
+            --image "${IMAGE}:${GITHUB_SHA}" \
+            --service-account "market-api@${PROJECT_ID}.iam.gserviceaccount.com" \
+            --min-instances 0 \
+            --max-instances 2 \
+            --memory 512Mi \
+            --cpu 1 \
+            --cpu-boost \
+            --concurrency 40 \
+            --timeout 60 \
+            --set-env-vars "^@^GCP_PROJECT=${PROJECT_ID}@ALLOWED_ORIGINS=${ALLOWED_ORIGINS}" \
+            --quiet
+
+      - name: Smoke test
+        run: |
+          url=$(gcloud run services describe "${SERVICE}" --project "${PROJECT_ID}" --region "${REGION}" --format 'value(status.url)')
+          curl --fail --silent --show-error --max-time 60 "${url}/health"
+          echo "Deployed ${url}" >> "$GITHUB_STEP_SUMMARY"

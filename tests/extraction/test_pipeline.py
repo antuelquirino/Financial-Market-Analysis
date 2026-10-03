@@ -5,7 +5,7 @@ import pytest
 
 from extraction import config
 from extraction.pipeline import last_complete_session, run
-from tests.conftest import LAST_SESSION, NOW, yahoo_frame
+from tests.extraction.conftest import LAST_SESSION, NOW, yahoo_frame
 
 TICKERS = ["AAA", "BBB", "CCC"]
 

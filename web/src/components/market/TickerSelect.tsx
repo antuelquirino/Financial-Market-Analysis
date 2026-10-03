@@ -47,7 +47,7 @@ export function TickerSelect({
           )
         }
         className={cx(
-          "h-[34px] w-56 appearance-none rounded-md bg-none border border-rule bg-surface py-1 pr-8 pl-3 text-sm text-ink",
+          "h-[34px] w-64 appearance-none rounded-md bg-none border border-rule bg-surface py-1 pr-8 pl-3 text-sm text-ink",
           "hover:bg-wash",
           focusInput,
           pending && "text-muted",

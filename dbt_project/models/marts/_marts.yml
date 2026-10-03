@@ -118,3 +118,16 @@ models:
         description: Tickers whose latest session is last_market_date.
       - name: built_at
         description: When dbt last rebuilt this table.
+
+  - name: dim_tickers
+    description: Ticker attributes and the dates each one has data for. Source of the API's ticker list.
+    columns:
+      - name: ticker
+        data_tests: [not_null, unique]
+      - name: asset_type
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [stock, sector_etf, benchmark]
+      - name: is_benchmark
+        description: True for the benchmark of every comparison (var benchmark_ticker).

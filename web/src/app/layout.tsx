@@ -1,8 +1,11 @@
 import type { Metadata } from "next"
+import { headers } from "next/headers"
 import { ThemeProvider } from "next-themes"
 import { IBM_Plex_Sans, Newsreader } from "next/font/google"
 import "./globals.css"
 import { siteConfig } from "./siteConfig"
+
+import type { Locale } from "@/lib/locale"
 
 
 // Interface and numbers: tabular figures, legible at small sizes.
@@ -36,14 +39,17 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  // Set by src/proxy.ts from the path: /es is Spanish, everything else English.
+  const locale: Locale =
+    (await headers()).get("x-locale") === "es" ? "es" : "en"
   return (
     <html
-      lang="en"
+      lang={locale}
       className={`${plex.variable} ${newsreader.variable}`}
       suppressHydrationWarning
     >

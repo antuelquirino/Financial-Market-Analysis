@@ -65,3 +65,20 @@ describe("toneOf", () => {
     expect(toneOf(null)).toBe("neutral")
   })
 })
+
+describe("Spanish (Argentina)", () => {
+  const es = { locale: "es" as const }
+
+  it("uses comma decimals, dot thousands and its own units", () => {
+    expect(formatPercent(16.416, es)).toBe("1.641,6%")
+    expect(formatPercent(-0.202, { ...es, signed: true })).toBe("−20,2%")
+    expect(formatPoints(0.0312, es)).toBe("+3,1 pp")
+    expect(formatPrice(5734.123, es)).toBe("US$5.734,12")
+    expect(formatNumber(-0.3, es)).toBe("−0,30")
+  })
+
+  it("writes dates the Argentine way", () => {
+    expect(formatDate("2026-10-02", "day", es)).toBe("2 de oct de 2026")
+    expect(formatDate("2026-10-02", "month", es)).toBe("oct 2026")
+  })
+})

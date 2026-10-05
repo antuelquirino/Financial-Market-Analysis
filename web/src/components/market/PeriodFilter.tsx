@@ -1,5 +1,7 @@
 import Link from "next/link"
 
+import { MESSAGES } from "@/lib/i18n"
+import type { Locale } from "@/lib/locale"
 import { hrefFor, type Selection } from "@/lib/selection"
 import { PERIODS } from "@/lib/types"
 import { cx, focusRing } from "@/lib/utils"
@@ -10,7 +12,7 @@ export function Segmented({
   options,
 }: {
   label: string
-  options: { href: string; text: string; active: boolean }[]
+  options: { href: string; text: string; active: boolean; lang?: string }[]
 }) {
   return (
     <nav aria-label={label}>
@@ -19,6 +21,7 @@ export function Segmented({
           <li key={option.href}>
             <Link
               href={option.href}
+              hrefLang={option.lang}
               aria-current={option.active ? "true" : undefined}
               scroll={false}
               className={cx(
@@ -42,16 +45,20 @@ export function Segmented({
 export function PeriodFilter({
   selection,
   path,
+  locale = "en",
 }: {
   selection: Selection
+  /** The current screen's path, with its language prefix. */
   path: string
+  locale?: Locale
 }) {
+  const t = MESSAGES[locale].period
   return (
     <Segmented
-      label="Period"
+      label={t.label}
       options={PERIODS.map((period) => ({
         href: hrefFor(path, selection, { period }),
-        text: period === "MAX" ? "Max" : period,
+        text: t.short[period],
         active: period === selection.period,
       }))}
     />

@@ -44,17 +44,3 @@ export function hrefFor(
   const query = params.toString()
   return query ? `${path}?${query}` : path
 }
-
-/** "over the past year" · "over the past 3 years" · "since Jan 4, 2021" (the caller formats the date). */
-export function periodPhrase(period: Period, startLabel: string): string {
-  switch (period) {
-    case "1Y":
-      return "over the past year"
-    case "3Y":
-      return "over the past 3 years"
-    case "5Y":
-      return "over the past 5 years"
-    case "MAX":
-      return `since ${startLabel}`
-  }
-}

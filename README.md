@@ -20,7 +20,9 @@ dashboard.
 ## Dashboard
 
 Three screens share a global ticker and period selector, kept in the URL so
-any view can be shared as a link. Each opens with its finding as a sentence,
+any view can be shared as a link. The dashboard is bilingual: English at `/`
+and Spanish (Argentina) at [`/es`](https://financial-market-analysis.vercel.app/es),
+with an EN | ES switch that keeps the screen and the selection. Each opens with its finding as a sentence,
 and every comparison is against SPY over the same dates.
 
 | Overview | Risk | Sectors |

@@ -1,4 +1,5 @@
 import { formatDate, formatNumber, formatPercent, formatPrice } from "@/lib/format"
+import type { Locale } from "@/lib/locale"
 
 // Server components cannot pass functions to client components, so charts
 // receive the name of a format and look the formatter up here.
@@ -10,17 +11,24 @@ export type ValueFormat = "percent" | "signedPercent" | "price" | "number"
 const percentDecimals = (value: number) =>
   Math.abs(value * 100 - Math.round(value * 100)) < 1e-9 ? 0 : 1
 
-export function formatterFor(format: ValueFormat): (value: number) => string {
+export function formatterFor(
+  format: ValueFormat,
+  locale: Locale = "en",
+): (value: number) => string {
   switch (format) {
     case "percent":
-      return (value) => formatPercent(value, { decimals: percentDecimals(value) })
+      return (value) => formatPercent(value, { decimals: percentDecimals(value), locale })
     case "signedPercent":
       return (value) =>
-        formatPercent(value, { decimals: percentDecimals(value), signed: true })
+        formatPercent(value, {
+          decimals: percentDecimals(value),
+          signed: true,
+          locale,
+        })
     case "price":
-      return (value) => formatPrice(value)
+      return (value) => formatPrice(value, { locale })
     case "number":
-      return (value) => formatNumber(value)
+      return (value) => formatNumber(value, { locale })
   }
 }
 
@@ -30,9 +38,9 @@ export const isIsoDate = (value: unknown): value is string =>
   typeof value === "string" && ISO_DATE.test(value)
 
 /** Axis ticks of daily data: "Sep 2026". */
-export const formatAxisDate = (value: unknown): string =>
-  isIsoDate(value) ? formatDate(value, "month") : String(value ?? "")
+export const formatAxisDate = (value: unknown, locale: Locale = "en"): string =>
+  isIsoDate(value) ? formatDate(value, "month", { locale }) : String(value ?? "")
 
 /** Tooltip titles of daily data: "Sep 29, 2026". */
-export const formatTooltipDate = (value: unknown): string =>
-  isIsoDate(value) ? formatDate(value) : String(value ?? "")
+export const formatTooltipDate = (value: unknown, locale: Locale = "en"): string =>
+  isIsoDate(value) ? formatDate(value, "day", { locale }) : String(value ?? "")

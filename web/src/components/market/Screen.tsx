@@ -1,3 +1,4 @@
+import type { Locale } from "@/lib/locale"
 import type { Shell } from "@/lib/shell"
 import { SiteFooter, SiteHeader, type Screen as ScreenId } from "./SiteChrome"
 
@@ -5,10 +6,12 @@ import { SiteFooter, SiteHeader, type Screen as ScreenId } from "./SiteChrome"
 export function Screen({
   id,
   shell,
+  locale,
   children,
 }: {
   id: ScreenId
   shell: Shell
+  locale: Locale
   children: React.ReactNode
 }) {
   return (
@@ -18,9 +21,10 @@ export function Screen({
         selection={shell.selection}
         tickers={shell.tickers}
         status={shell.status}
+        locale={locale}
       />
       {children}
-      <SiteFooter />
+      <SiteFooter locale={locale} />
     </div>
   )
 }

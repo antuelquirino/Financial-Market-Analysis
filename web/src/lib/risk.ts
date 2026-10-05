@@ -2,9 +2,16 @@
 
 import type { KpiItem } from "@/components/market/KpiStrip"
 import type { ChartDatum } from "./chartUtils"
-import { formatDate, formatNumber, formatPercent, formatPoints, toneOf } from "./format"
-import type { Sentence } from "./overview"
-import { periodPhrase } from "./selection"
+import {
+  formatCount,
+  formatDate,
+  formatNumber,
+  formatPercent,
+  formatPoints,
+  toneOf,
+} from "./format"
+import { MESSAGES, type Sentence } from "./i18n"
+import type { Locale } from "./locale"
 import type { PeriodMetrics, RiskResponse } from "./types"
 
 // Drawdowns closer to zero than this count as "at the peak".
@@ -38,72 +45,83 @@ export function worstFall(points: RiskResponse["drawdown"]): WorstFall | null {
 }
 
 /** "NVDA's deepest fall over the past year was −20.2%, from Jan 6 to Mar 30, 2026; it was back at its high by Apr 24, 2026." */
-export function riskLead(risk: RiskResponse): Sentence {
+export function riskLead(risk: RiskResponse, locale: Locale = "en"): Sentence {
+  const t = MESSAGES[locale].risk
+  const date = (iso: string) => formatDate(iso, "day", { locale })
   const symbol = risk.ticker.ticker
-  const period = periodPhrase(risk.period, formatDate(risk.metrics.start_date))
+  const period = MESSAGES[locale].period.phrase(risk.period, date(risk.metrics.start_date))
   const fall = worstFall(risk.drawdown)
-  if (!fall) {
-    return {
-      before: `${symbol} never fell below a previous high `,
-      mark: period,
-      after: ".",
-    }
-  }
-  const recovery = fall.recovered
-    ? `it was back at its high by ${formatDate(fall.recovered)}`
-    : "it has not recovered yet"
-  return {
-    before: `${symbol}’s deepest fall ${period} was `,
-    mark: formatPercent(fall.depth),
-    after: `, from ${formatDate(fall.peak)} to ${formatDate(fall.trough)}; ${recovery}.`,
-  }
+  if (!fall) return t.neverFell(symbol, period)
+  return t.lead(
+    symbol,
+    period,
+    formatPercent(fall.depth, { locale }),
+    date(fall.peak),
+    date(fall.trough),
+    fall.recovered ? date(fall.recovered) : null,
+  )
 }
 
 /** Title of the drawdown chart: where the period ends relative to its peak. */
-export function drawdownFinding(risk: RiskResponse): string {
+export function drawdownFinding(risk: RiskResponse, locale: Locale = "en"): string {
+  const t = MESSAGES[locale].risk
   const last = risk.drawdown[risk.drawdown.length - 1]
   const symbol = risk.ticker.ticker
-  if (!last) return `${symbol} has no data for this period`
-  if (last.drawdown > -0.005) return `${symbol} ends the period at or near its high`
-  return `${symbol} ends the period ${formatPercent(-last.drawdown)} below its peak`
+  if (!last) return t.noData(symbol)
+  if (last.drawdown > -0.005) return t.atHigh(symbol)
+  return t.belowPeak(symbol, formatPercent(-last.drawdown, { locale }))
 }
 
-export function volatilityChartData(risk: RiskResponse): ChartDatum[] {
+/** Series names are shown in the legend and tooltip, so they are translated. */
+export function volatilityChartData(risk: RiskResponse, locale: Locale = "en"): ChartDatum[] {
+  const t = MESSAGES[locale].risk
   return risk.rolling_volatility.map((p) => ({
     date: p.date,
-    "1-month": p.volatility_1m,
-    "1-year": p.volatility_1y,
+    [t.oneMonth]: p.volatility_1m,
+    [t.oneYear]: p.volatility_1y,
   }))
 }
 
 /** Title of the volatility chart: the short-term peak and where it stands now. */
-export function volatilityFinding(risk: RiskResponse): string {
+export function volatilityFinding(risk: RiskResponse, locale: Locale = "en"): string {
+  const t = MESSAGES[locale].risk
   const points = risk.rolling_volatility.filter((p) => p.volatility_1m !== null)
-  if (!points.length) return "Not enough sessions to measure volatility"
+  if (!points.length) return t.notEnoughSessions
   const peak = points.reduce((best, p) => (p.volatility_1m! > best.volatility_1m! ? p : best))
   const now = points[points.length - 1]
-  return `Short-term volatility peaked at ${formatPercent(peak.volatility_1m, { decimals: 0 })} on ${formatDate(peak.date)}; it is ${formatPercent(now.volatility_1m, { decimals: 0 })} now`
+  const pct = (value: number | null) => formatPercent(value, { decimals: 0, locale })
+  return t.volatilityPeak(pct(peak.volatility_1m), formatDate(peak.date, "day", { locale }), pct(now.volatility_1m))
 }
 
 /** Title of the histogram: how often the ticker lost money, and its worst day. */
-export function distributionFinding(risk: RiskResponse): string {
+export function distributionFinding(risk: RiskResponse, locale: Locale = "en"): string {
+  const t = MESSAGES[locale].risk
   const d = risk.return_distribution
   const symbol = risk.ticker.ticker
-  if (!d.sessions || !d.worst_day) return `${symbol} has no daily returns in this period`
-  return `${symbol} fell on ${formatPercent(d.share_negative, { decimals: 0 })} of sessions; its worst day was ${formatPercent(d.worst_day.daily_return)} on ${formatDate(d.worst_day.date)}`
+  if (!d.sessions || !d.worst_day) return t.noReturns(symbol)
+  return t.distribution(
+    symbol,
+    formatPercent(d.share_negative, { decimals: 0, locale }),
+    formatPercent(d.worst_day.daily_return, { locale }),
+    formatDate(d.worst_day.date, "day", { locale }),
+  )
 }
 
 export interface HistogramBar {
   label: string // "−1.0% to −0.5%"
   center: number
   sessions: number
+  sessionsLabel: string // "31 sessions"
 }
 
-export function histogramData(risk: RiskResponse): HistogramBar[] {
+export function histogramData(risk: RiskResponse, locale: Locale = "en"): HistogramBar[] {
+  const t = MESSAGES[locale].risk
+  const pct = (value: number) => formatPercent(value, { decimals: 1, locale })
   return risk.return_distribution.bins.map((b) => ({
-    label: `${formatPercent(b.lower, { decimals: 1 })} to ${formatPercent(b.upper, { decimals: 1 })}`,
+    label: t.binLabel(pct(b.lower), pct(b.upper)),
     center: (b.lower + b.upper) / 2,
     sessions: b.sessions,
+    sessionsLabel: t.sessions(b.sessions, formatCount(b.sessions, { locale })),
   }))
 }
 
@@ -112,7 +130,9 @@ export function riskKpis(
   risk: RiskResponse,
   benchmark: PeriodMetrics | null,
   benchmarkSymbol: string,
+  locale: Locale = "en",
 ): KpiItem[] {
+  const k = MESSAGES[locale].kpi
   const m = risk.metrics
   const self = risk.ticker.ticker === benchmarkSymbol
   const b = self ? null : benchmark
@@ -120,39 +140,39 @@ export function riskKpis(
     if (value === null || other === null || other === undefined) return undefined
     const difference = value - other
     return {
-      text: formatPoints(difference),
+      text: formatPoints(difference, { locale }),
       direction: (difference > 0 ? "up" : difference < 0 ? "down" : "flat") as "up" | "down" | "flat",
       tone: toneOf(difference, higherIsBetter),
-      comparison: `vs ${benchmarkSymbol}`,
+      comparison: k.versus(benchmarkSymbol),
     }
   }
   return [
     {
-      label: "Volatility",
-      value: formatPercent(m.volatility),
+      label: k.volatility,
+      value: formatPercent(m.volatility, { locale }),
       change: compare(m.volatility, b?.volatility, false),
-      note: "Annualized",
+      note: k.annualized,
     },
     {
-      label: "Max drawdown",
-      value: formatPercent(m.max_drawdown),
+      label: k.maxDrawdown,
+      value: formatPercent(m.max_drawdown, { locale }),
       change: compare(m.max_drawdown, b?.max_drawdown, true),
-      note: self ? "The benchmark" : "Peak to trough",
+      note: self ? k.theBenchmark : k.peakToTrough,
     },
     {
-      label: "Sharpe ratio",
-      value: formatNumber(m.sharpe_ratio),
-      note: "Return per unit of risk",
+      label: k.sharpe,
+      value: formatNumber(m.sharpe_ratio, { locale }),
+      note: k.perUnitOfRisk,
     },
     {
-      label: "Beta",
-      value: self ? "1.00" : formatNumber(m.beta),
-      note: `Moves vs ${benchmarkSymbol} (1.00 = same)`,
+      label: k.beta,
+      value: formatNumber(self ? 1 : m.beta, { locale }),
+      note: k.betaNote(benchmarkSymbol),
     },
     {
-      label: "Losing sessions",
-      value: formatPercent(risk.return_distribution.share_negative, { decimals: 0 }),
-      note: `of ${risk.return_distribution.sessions.toLocaleString("en-US")} sessions`,
+      label: k.losingSessions,
+      value: formatPercent(risk.return_distribution.share_negative, { decimals: 0, locale }),
+      note: k.ofSessions(formatCount(risk.return_distribution.sessions, { locale })),
     },
   ]
 }

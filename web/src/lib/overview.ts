@@ -10,40 +10,43 @@ import {
   formatPoints,
   toneOf,
 } from "./format"
-import { periodPhrase } from "./selection"
+import { MESSAGES, type Sentence } from "./i18n"
+import type { Locale } from "./locale"
 import type { PerformanceResponse, PeriodMetrics } from "./types"
 
-export interface Sentence {
-  before: string
-  mark: string // the key figure, shown with the marker
-  after: string
-}
+export type { Sentence } from "./i18n"
 
 // Differences smaller than this read as "in line".
 const SAME = 0.0005
 
-export function describePeriod(response: PerformanceResponse): string {
-  return periodPhrase(response.period, formatDate(response.metrics.start_date))
+export function describePeriod(response: PerformanceResponse, locale: Locale = "en"): string {
+  return MESSAGES[locale].period.phrase(
+    response.period,
+    formatDate(response.metrics.start_date, "day", { locale }),
+  )
 }
 
 const isBenchmark = (response: PerformanceResponse) =>
   response.ticker.ticker === response.benchmark.ticker
 
 /** "NVDA returned +24.2% over the past year, 2.1 pts ahead of SPY." */
-export function overviewLead(response: PerformanceResponse): Sentence {
+export function overviewLead(response: PerformanceResponse, locale: Locale = "en"): Sentence {
+  const t = MESSAGES[locale].overview
   const { ticker, benchmark, metrics } = response
-  const before = `${ticker.ticker} returned `
-  const mark = formatPercent(metrics.total_return, { signed: true })
-  const period = describePeriod(response)
+  const ret = formatPercent(metrics.total_return, { signed: true, locale })
+  const period = describePeriod(response, locale)
   if (isBenchmark(response) || metrics.excess_return === null) {
-    return { before, mark, after: ` ${period}.` }
+    return t.lead(ticker.ticker, ret, period, null)
   }
   const excess = metrics.excess_return
+  const points = formatPoints(Math.abs(excess), { locale }).slice(1) // no sign: "ahead" says it
   const versus =
     Math.abs(excess) < SAME
-      ? `in line with ${benchmark.ticker}`
-      : `${formatPoints(Math.abs(excess)).slice(1)} ${excess > 0 ? "ahead of" : "behind"} ${benchmark.ticker}`
-  return { before, mark, after: ` ${period}, ${versus}.` }
+      ? t.inLine(benchmark.ticker)
+      : excess > 0
+        ? t.ahead(points, benchmark.ticker)
+        : t.behind(points, benchmark.ticker)
+  return t.lead(ticker.ticker, ret, period, versus)
 }
 
 function change(
@@ -51,22 +54,21 @@ function change(
   text: string,
   higherIsBetter: boolean,
   benchmark: string,
+  locale: Locale,
 ): KpiItem["change"] {
   if (difference === null) return undefined
+  const k = MESSAGES[locale].kpi
   const flat = Math.abs(difference) < SAME
   return {
-    text: flat ? "Same" : text,
+    text: flat ? k.same : text,
     direction: flat ? "flat" : difference > 0 ? "up" : "down",
     tone: flat ? "neutral" : toneOf(difference, higherIsBetter),
-    comparison: `vs ${benchmark}`,
+    comparison: k.versus(benchmark),
   }
 }
 
 const diff = (a: number | null, b: number | null) =>
   a === null || b === null ? null : a - b
-
-const signedNumber = (value: number) =>
-  (value > 0 ? "+" : "") + formatNumber(value)
 
 /**
  * Five KPIs, each compared with the benchmark over the same dates: more return
@@ -75,43 +77,49 @@ const signedNumber = (value: number) =>
 export function overviewKpis(
   response: PerformanceResponse,
   benchmark: PeriodMetrics | null,
+  locale: Locale = "en",
 ): KpiItem[] {
+  const k = MESSAGES[locale].kpi
   const m = response.metrics
   const b = isBenchmark(response) ? null : benchmark
   const name = response.benchmark.ticker
-  const note = isBenchmark(response) ? "The benchmark" : undefined
+  const note = isBenchmark(response) ? k.theBenchmark : undefined
   const vol = diff(m.volatility, b?.volatility ?? null)
   const dd = diff(m.max_drawdown, b?.max_drawdown ?? null)
   const sharpe = diff(m.sharpe_ratio, b?.sharpe_ratio ?? null)
   const excess = isBenchmark(response) ? null : m.excess_return
+  const points = (value: number) => formatPoints(value, { locale })
   return [
     {
-      label: "Return",
-      value: formatPercent(m.total_return, { signed: true }),
-      change: excess === null ? undefined : change(excess, formatPoints(excess), true, name),
+      label: k.return,
+      value: formatPercent(m.total_return, { signed: true, locale }),
+      change: excess === null ? undefined : change(excess, points(excess), true, name, locale),
       note,
     },
     {
-      label: "Annualized return",
-      value: formatPercent(m.cagr, { signed: true }),
-      note: "CAGR",
+      label: k.cagr,
+      value: formatPercent(m.cagr, { signed: true, locale }),
+      note: k.cagrNote,
     },
     {
-      label: "Volatility",
-      value: formatPercent(m.volatility),
-      change: vol === null ? undefined : change(vol, formatPoints(vol), false, name),
-      note: note ?? "Annualized",
+      label: k.volatility,
+      value: formatPercent(m.volatility, { locale }),
+      change: vol === null ? undefined : change(vol, points(vol), false, name, locale),
+      note: note ?? k.annualized,
     },
     {
-      label: "Max drawdown",
-      value: formatPercent(m.max_drawdown),
-      change: dd === null ? undefined : change(dd, formatPoints(dd), true, name),
+      label: k.maxDrawdown,
+      value: formatPercent(m.max_drawdown, { locale }),
+      change: dd === null ? undefined : change(dd, points(dd), true, name, locale),
       note,
     },
     {
-      label: "Sharpe ratio",
-      value: formatNumber(m.sharpe_ratio),
-      change: sharpe === null ? undefined : change(sharpe, signedNumber(sharpe), true, name),
+      label: k.sharpe,
+      value: formatNumber(m.sharpe_ratio, { locale }),
+      change:
+        sharpe === null
+          ? undefined
+          : change(sharpe, formatNumber(sharpe, { signed: true, locale }), true, name, locale),
       note,
     },
   ]
@@ -136,19 +144,23 @@ export function performanceChartData(response: PerformanceResponse): ChartDatum[
 const NEAR_HIGH = 0.03
 
 /** The chart's title: where the path peaked and how much of it was kept. */
-export function performanceFinding(response: PerformanceResponse): string {
+export function performanceFinding(response: PerformanceResponse, locale: Locale = "en"): string {
+  const t = MESSAGES[locale].overview
   const { series, ticker } = response
-  if (!series.length) return `${ticker.ticker} has no data for this period`
+  if (!series.length) return t.noData(ticker.ticker)
+  const pct = (value: number, signed = true) => formatPercent(value, { signed, locale })
   const last = series[series.length - 1]
   const peak = series.reduce((best, p) => (p.cum_return > best.cum_return ? p : best))
-  const end = formatPercent(last.cum_return, { signed: true })
-  if (peak.cum_return <= 0) {
-    return `${ticker.ticker} never rose above its starting price, ending at ${end}`
-  }
+  const end = pct(last.cum_return)
+  if (peak.cum_return <= 0) return t.neverAbove(ticker.ticker, end)
   // Like a drawdown: the fall measured from the peak, not from the end.
   const givenBack = 1 - (1 + last.cum_return) / (1 + peak.cum_return)
-  if (givenBack < NEAR_HIGH) {
-    return `${ticker.ticker} ended near its high for the period, at ${end}`
-  }
-  return `${ticker.ticker} peaked at ${formatPercent(peak.cum_return, { signed: true })} on ${formatDate(peak.date)}, then fell ${formatPercent(givenBack)} to ${end}`
+  if (givenBack < NEAR_HIGH) return t.nearHigh(ticker.ticker, end)
+  return t.peaked(
+    ticker.ticker,
+    pct(peak.cum_return),
+    formatDate(peak.date, "day", { locale }),
+    pct(givenBack, false),
+    end,
+  )
 }

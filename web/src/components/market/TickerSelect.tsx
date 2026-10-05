@@ -4,15 +4,13 @@ import { RiArrowDownSLine } from "@remixicon/react"
 import { usePathname, useRouter } from "next/navigation"
 import { useTransition } from "react"
 
+import { MESSAGES, sectorName } from "@/lib/i18n"
+import type { Locale } from "@/lib/locale"
 import { hrefFor, type Selection } from "@/lib/selection"
 import type { AssetType, Ticker } from "@/lib/types"
 import { cx, focusInput } from "@/lib/utils"
 
-const GROUPS: { type: AssetType; label: string }[] = [
-  { type: "stock", label: "Stocks" },
-  { type: "sector_etf", label: "Sector ETFs" },
-  { type: "benchmark", label: "Benchmarks" },
-]
+const GROUPS: AssetType[] = ["stock", "sector_etf", "benchmark"]
 
 /**
  * The global ticker choice. A native <select>: keyboard, screen readers and
@@ -22,17 +20,20 @@ const GROUPS: { type: AssetType; label: string }[] = [
 export function TickerSelect({
   tickers,
   selection,
+  locale = "en",
 }: {
   tickers: Ticker[]
   selection: Selection
+  locale?: Locale
 }) {
+  const t = MESSAGES[locale]
   const router = useRouter()
   const pathname = usePathname()
   const [pending, startTransition] = useTransition()
   return (
     <div className="relative">
       <label htmlFor="ticker-select" className="sr-only">
-        Ticker
+        {t.header.ticker}
       </label>
       <select
         id="ticker-select"
@@ -54,12 +55,12 @@ export function TickerSelect({
         )}
       >
         {GROUPS.map((group) => (
-          <optgroup key={group.type} label={group.label}>
+          <optgroup key={group} label={t.tickerGroups[group]}>
             {tickers
-              .filter((t) => t.asset_type === group.type)
-              .map((t) => (
-                <option key={t.ticker} value={t.ticker}>
-                  {t.ticker} · {shortName(t)}
+              .filter((ticker) => ticker.asset_type === group)
+              .map((ticker) => (
+                <option key={ticker.ticker} value={ticker.ticker}>
+                  {ticker.ticker} · {shortName(ticker, locale)}
                 </option>
               ))}
           </optgroup>
@@ -74,7 +75,8 @@ export function TickerSelect({
 }
 
 // "Technology Select Sector SPDR Fund" reads better as its sector.
-function shortName(ticker: Ticker): string {
-  if (ticker.asset_type === "sector_etf" && ticker.sector) return ticker.sector
+function shortName(ticker: Ticker, locale: Locale): string {
+  if (ticker.asset_type === "sector_etf" && ticker.sector)
+    return sectorName(ticker.sector, locale)
   return ticker.name.replace(/,? (Inc\.|Corporation|& Co\.)$/, "")
 }

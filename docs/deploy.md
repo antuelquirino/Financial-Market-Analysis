@@ -154,7 +154,9 @@ put it in Secret Manager and mount it with `--set-secrets`, never as a plain
 environment variable.
 
 **After the first deploy only**, make the service public. The deploy account
-cannot change IAM on purpose, so this is a one-time step by a project owner:
+cannot change IAM on purpose, so this is a one-time step by a project owner.
+Until it is done, the first run's smoke test fails with a 403 even though the
+deploy itself succeeded; run the workflow again afterwards.
 
 ```powershell
 gcloud run services add-iam-policy-binding market-api --region $REGION `
@@ -176,6 +178,15 @@ gcloud run services add-iam-policy-binding market-api --region $REGION `
 `API_URL` is read on the server at request time, so changing it needs a
 redeploy in Vercel but no code change.
 
+Use the **production domain** (`https://<project>.vercel.app`) everywhere:
+README, CORS, links. The per-deployment URLs Vercel also shows
+(`<project>-<hash>-<team>.vercel.app`) are behind Vercel Authentication by
+default, so visitors without a Vercel login get a sign-in page.
+
+Keep test-only code out of `tests/conftest.py` at the root if it imports
+heavy packages: the deploy job installs only `api/requirements.txt`, and a
+root `conftest.py` loads for `pytest tests/api` too.
+
 ## Checking a deploy
 
 ```powershell
@@ -186,3 +197,20 @@ curl.exe -s "$API/status"
 curl.exe -s -D - -o NUL -H "Origin: https://financial-market.vercel.app" "$API/health" | Select-String access-control
 curl.exe -s -D - -o NUL -H "Origin: https://evil.example" "$API/health" | Select-String access-control
 ```
+
+### Cold starts
+
+With zero minimum instances, the first request after ~15 idle minutes starts
+a container. Measured on 2026-10-05 after a weekend without traffic:
+
+| Request | Time |
+|---|---|
+| `/health`, instance scaled to zero | 13.2 s |
+| `/health`, warm | 0.5 s |
+| First data request on a fresh instance (BigQuery client, auth, query) | 5.9 s |
+| A dashboard page with nothing cached, end to end | 6.1 s |
+
+The dashboard shows its static loading state meanwhile, and Next.js caches
+API responses for 10 minutes, so only the first visitor after a quiet spell
+waits. `--min-instances 1` would remove the wait but bills an idle instance
+around the clock, which breaks the near-zero budget.

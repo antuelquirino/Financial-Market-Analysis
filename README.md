@@ -10,6 +10,10 @@ with dbt: cumulative return, CAGR, volatility, drawdown, Sharpe ratio and beta,
 over 1, 3 and 5 years. A FastAPI service serves the marts to a Next.js
 dashboard.
 
+**Live dashboard: https://financial-market-analysis.vercel.app** ·
+[API docs](https://market-api-7cjzbizs7q-uc.a.run.app/docs) ·
+[Design system](https://financial-market-analysis.vercel.app/styleguide)
+
 > Not investment advice. The data comes from an unofficial source and is shown
 > for educational purposes.
 
@@ -33,12 +37,13 @@ and every comparison is against SPY over the same dates.
 
 The dashboard reuses InsightFlow's design system ("an analyst's report") with
 its own cobalt accent. Its rules and components are documented at
-`/styleguide`. The Next.js dashboard runs locally for now; publishing it is
-Phase 3.
+[`/styleguide`](https://financial-market-analysis.vercel.app/styleguide).
 
 ### Earlier dashboards
 
-These stay online until the new dashboard is published.
+The first versions of the project, kept for reference: Tableau remains a
+complement in the portfolio, and the Streamlit app is superseded by the
+dashboard above.
 
 - **Streamlit app:** [financial-market-analysis.streamlit.app](https://financial-market-analysis-eebjsbfnfsd57txv6wrgra.streamlit.app/),
   with performance and rolling risk per ticker.
@@ -174,6 +179,18 @@ Interactive docs at `/docs` when the API is running.
 
 `period` is one of `1Y`, `3Y`, `5Y`, `MAX`. An unknown ticker is a 404, an
 invalid period a 422, and a BigQuery failure a 502 without internal details.
+
+## Deploy
+
+| Piece | Where | How it updates |
+|---|---|---|
+| Dashboard | [Vercel](https://financial-market-analysis.vercel.app) (root `web/`) | Every push to `main` |
+| API | [Cloud Run](https://market-api-7cjzbizs7q-uc.a.run.app/docs), us-central1, 0–2 instances | [`deploy-api.yml`](.github/workflows/deploy-api.yml): on pushes to `main` that touch the API, tests → image → deploy, through Workload Identity Federation |
+| Data | BigQuery, US | [`daily_sync.yml`](.github/workflows/daily_sync.yml), weekdays after the close |
+
+The API runs as a read-only service account, scales to zero, and the project
+has a US$5 budget with alerts. [`docs/deploy.md`](docs/deploy.md) has the
+whole setup as a reusable recipe.
 
 ## Run it from scratch
 

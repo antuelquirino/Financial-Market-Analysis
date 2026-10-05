@@ -18,6 +18,8 @@ import {
 } from "recharts"
 
 import { formatDate, formatPercent } from "@/lib/format"
+import { MESSAGES } from "@/lib/i18n"
+import type { Locale } from "@/lib/locale"
 import { drawdownTicks, type HistogramBar } from "@/lib/risk"
 import { formatAxisDate, formatterFor } from "./valueFormats"
 
@@ -38,12 +40,14 @@ function TooltipBox({ title, children }: { title: string; children: React.ReactN
  */
 export function DrawdownChart({
   data,
+  locale = "en",
   className = "h-72",
 }: {
   data: { date: string; drawdown: number }[]
+  locale?: Locale
   className?: string
 }) {
-  const format = formatterFor("percent")
+  const format = formatterFor("percent", locale)
   const ticks = drawdownTicks(Math.min(...data.map((p) => p.drawdown)))
   return (
     <div className={className}>
@@ -52,7 +56,7 @@ export function DrawdownChart({
           <CartesianGrid vertical={false} stroke="var(--rule)" />
           <XAxis
             dataKey="date"
-            tickFormatter={formatAxisDate}
+            tickFormatter={(value) => formatAxisDate(value, locale)}
             tick={AXIS_TICK}
             tickLine={false}
             axisLine={false}
@@ -75,8 +79,10 @@ export function DrawdownChart({
             isAnimationActive={false}
             content={({ active, payload, label }) =>
               active && payload?.length ? (
-                <TooltipBox title={formatDate(String(label))}>
-                  {formatPercent(Number(payload[0].value))} below the peak
+                <TooltipBox title={formatDate(String(label), "day", { locale })}>
+                  {MESSAGES[locale].risk.belowThePeak(
+                    formatPercent(Number(payload[0].value), { locale }),
+                  )}
                 </TooltipBox>
               ) : null
             }
@@ -103,9 +109,11 @@ export function DrawdownChart({
  */
 export function ReturnHistogram({
   data,
+  locale = "en",
   className = "h-72",
 }: {
   data: HistogramBar[]
+  locale?: Locale
   className?: string
 }) {
   const zeroIndex = data.findIndex((bar) => bar.center > 0)
@@ -121,7 +129,7 @@ export function ReturnHistogram({
               (min: number) => min - 0.0025,
               (max: number) => max + 0.0025,
             ]}
-            tickFormatter={(value: number) => formatPercent(value, { decimals: 0, signed: true })}
+            tickFormatter={(value: number) => formatPercent(value, { decimals: 0, signed: true, locale })}
             tick={AXIS_TICK}
             tickLine={false}
             axisLine={false}
@@ -144,10 +152,7 @@ export function ReturnHistogram({
             content={({ active, payload }) => {
               const bar = payload?.[0]?.payload as HistogramBar | undefined
               return active && bar ? (
-                <TooltipBox title={bar.label}>
-                  {bar.sessions.toLocaleString("en-US")}{" "}
-                  {bar.sessions === 1 ? "session" : "sessions"}
-                </TooltipBox>
+                <TooltipBox title={bar.label}>{bar.sessionsLabel}</TooltipBox>
               ) : null
             }}
           />

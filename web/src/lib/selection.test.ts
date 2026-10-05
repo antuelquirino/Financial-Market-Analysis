@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { hrefFor, parsePeriod, parseTicker, periodPhrase } from "./selection"
+import { hrefFor, parsePeriod, parseTicker } from "./selection"
 
 const tickers = [{ ticker: "NVDA" }, { ticker: "XLK" }, { ticker: "^GSPC" }]
 
@@ -31,12 +31,5 @@ describe("hrefFor", () => {
     expect(hrefFor("/", selection, { ticker: "^GSPC" })).toBe(
       "/?ticker=%5EGSPC&period=3Y",
     )
-  })
-})
-
-describe("periodPhrase", () => {
-  it("names the period", () => {
-    expect(periodPhrase("1Y", "")).toBe("over the past year")
-    expect(periodPhrase("MAX", "Jan 4, 2021")).toBe("since Jan 4, 2021")
   })
 })

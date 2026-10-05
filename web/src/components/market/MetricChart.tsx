@@ -2,6 +2,7 @@
 
 import { LineChart } from "@/components/LineChart"
 import type { AvailableChartColorsKeys, ChartDatum } from "@/lib/chartUtils"
+import type { Locale } from "@/lib/locale"
 import {
   formatAxisDate,
   formatterFor,
@@ -17,6 +18,7 @@ export function MetricLineChart({
   categories,
   colors,
   valueFormat,
+  locale = "en",
   showLegend,
   className,
 }: {
@@ -24,6 +26,7 @@ export function MetricLineChart({
   categories: string[]
   colors?: AvailableChartColorsKeys[]
   valueFormat: ValueFormat
+  locale?: Locale
   showLegend?: boolean
   className?: string
 }) {
@@ -33,9 +36,9 @@ export function MetricLineChart({
       index="date"
       categories={categories}
       colors={colors}
-      valueFormatter={formatterFor(valueFormat)}
-      indexFormatter={formatAxisDate}
-      tooltipIndexFormatter={formatTooltipDate}
+      valueFormatter={formatterFor(valueFormat, locale)}
+      indexFormatter={(value) => formatAxisDate(value, locale)}
+      tooltipIndexFormatter={(value) => formatTooltipDate(value, locale)}
       // a single series needs no legend: the section title names it
       showLegend={showLegend ?? categories.length > 1}
       autoMinValue

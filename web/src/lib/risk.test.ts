@@ -105,6 +105,7 @@ describe("findings", () => {
       label: "−1.0% to −0.5%",
       center: -0.0075,
       sessions: 2,
+      sessionsLabel: "2 sessions",
     })
   })
 })

@@ -1,30 +1,42 @@
 // What the Sectors screen says, and how its table sorts. Pure functions.
 
 import { formatDate, formatNumber, formatPercent } from "./format"
-import type { Sentence } from "./overview"
-import { periodPhrase } from "./selection"
+import { MESSAGES, sectorName, type Sentence } from "./i18n"
+import type { Locale } from "./locale"
 import type { SectorRow, SectorsResponse, Ticker } from "./types"
 
 /** "Energy led over the past year with +40.2%; 4 of 11 sectors beat SPY." */
-export function sectorsLead(response: SectorsResponse): Sentence {
+export function sectorsLead(response: SectorsResponse, locale: Locale = "en"): Sentence {
   const ranked = [...response.sectors].sort((a, b) => b.total_return - a.total_return)
   const best = ranked[0]
   const beat = ranked.filter((s) => s.total_return > response.benchmark.total_return).length
-  const period = periodPhrase(response.period, formatDate(response.start_date))
-  return {
-    before: `${best.sector ?? best.ticker} led ${period} with `,
-    mark: formatPercent(best.total_return, { signed: true }),
-    after: `; ${beat} of ${ranked.length} sectors beat ${response.benchmark.ticker}.`,
-  }
+  const period = MESSAGES[locale].period.phrase(
+    response.period,
+    formatDate(response.start_date, "day", { locale }),
+  )
+  return MESSAGES[locale].sectors.lead(
+    sectorName(best.sector, locale) || best.ticker,
+    period,
+    formatPercent(best.total_return, { signed: true, locale }),
+    beat,
+    ranked.length,
+    response.benchmark.ticker,
+  )
 }
 
 /** Title of the scatter: the best return per unit of risk. */
-export function scatterFinding(response: SectorsResponse): string {
+export function scatterFinding(response: SectorsResponse, locale: Locale = "en"): string {
+  const t = MESSAGES[locale].sectors
   const withSharpe = response.sectors.filter((s) => s.sharpe_ratio !== null)
-  if (!withSharpe.length) return "Not enough data to compare risk and return"
+  if (!withSharpe.length) return t.notEnoughData
   const best = withSharpe.reduce((a, b) => (b.sharpe_ratio! > a.sharpe_ratio! ? b : a))
   const worst = withSharpe.reduce((a, b) => (b.sharpe_ratio! < a.sharpe_ratio! ? b : a))
-  return `${best.sector} earned the most per unit of risk (Sharpe ${formatNumber(best.sharpe_ratio)}); ${worst.sector} the least (${formatNumber(worst.sharpe_ratio)})`
+  return t.scatterFinding(
+    sectorName(best.sector, locale),
+    formatNumber(best.sharpe_ratio, { locale }),
+    sectorName(worst.sector, locale),
+    formatNumber(worst.sharpe_ratio, { locale }),
+  )
 }
 
 /** The sector ETF to highlight for the selected ticker: itself, its sector's ETF, or none. */
@@ -43,13 +55,17 @@ export interface ScatterPoint {
   role: "sector" | "highlight" | "benchmark"
 }
 
-export function scatterData(response: SectorsResponse, highlight: string | null): ScatterPoint[] {
+export function scatterData(
+  response: SectorsResponse,
+  highlight: string | null,
+  locale: Locale = "en",
+): ScatterPoint[] {
   const point = (row: SectorRow, role: ScatterPoint["role"]): ScatterPoint | null =>
     row.volatility === null || row.cagr === null
       ? null
       : {
           ticker: row.ticker,
-          label: row.sector ?? row.name,
+          label: row.sector ? sectorName(row.sector, locale) : row.name,
           volatility: row.volatility,
           cagr: row.cagr,
           sharpe: row.sharpe_ratio,
@@ -74,15 +90,22 @@ export type SortKey =
 export type SortDirection = "ascending" | "descending"
 
 /** Sorted copy; nulls always last. Text sorts A→Z first, numbers high→low first. */
-export function sortSectors(rows: SectorRow[], key: SortKey, direction: SortDirection): SectorRow[] {
-  const value = (row: SectorRow) => (key === "sector" ? (row.sector ?? row.name) : row[key])
+export function sortSectors(
+  rows: SectorRow[],
+  key: SortKey,
+  direction: SortDirection,
+  locale: Locale = "en",
+): SectorRow[] {
+  // Sector names sort in the reader's language.
+  const value = (row: SectorRow) =>
+    key === "sector" ? (row.sector ? sectorName(row.sector, locale) : row.name) : row[key]
   const sign = direction === "ascending" ? 1 : -1
   return [...rows].sort((a, b) => {
     const x = value(a)
     const y = value(b)
     if (x === null) return 1
     if (y === null) return -1
-    if (typeof x === "string" && typeof y === "string") return sign * x.localeCompare(y)
+    if (typeof x === "string" && typeof y === "string") return sign * x.localeCompare(y, locale)
     return sign * ((x as number) - (y as number))
   })
 }

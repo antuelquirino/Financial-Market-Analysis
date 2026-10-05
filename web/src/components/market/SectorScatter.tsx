@@ -18,6 +18,8 @@ import {
 } from "recharts"
 
 import { formatNumber, formatPercent } from "@/lib/format"
+import { MESSAGES } from "@/lib/i18n"
+import type { Locale } from "@/lib/locale"
 import { labelSides, type ScatterPoint } from "@/lib/sectors"
 
 const AXIS_TICK = { fill: "var(--muted)", fontSize: 12 }
@@ -47,11 +49,14 @@ function Dot(props: { cx?: number; cy?: number; payload?: ScatterPoint }) {
 
 export function SectorScatter({
   data,
+  locale = "en",
   className = "h-96",
 }: {
   data: ScatterPoint[]
+  locale?: Locale
   className?: string
 }) {
+  const t = MESSAGES[locale].sectors
   const benchmark = data.find((p) => p.role === "benchmark")
   // Draw the highlight last so it sits on top.
   const ordered = [...data].sort(
@@ -66,14 +71,14 @@ export function SectorScatter({
           <XAxis
             type="number"
             dataKey="volatility"
-            name="Volatility"
+            name={t.volatility}
             domain={["auto", "auto"]}
-            tickFormatter={(v: number) => formatPercent(v, { decimals: 0 })}
+            tickFormatter={(v: number) => formatPercent(v, { decimals: 0, locale })}
             tick={AXIS_TICK}
             tickLine={false}
             axisLine={false}
             label={{
-              value: "Volatility (annualized) →",
+              value: t.volatilityAxis,
               position: "insideBottom",
               offset: -16,
               fill: "var(--graphite)",
@@ -83,11 +88,11 @@ export function SectorScatter({
           <YAxis
             type="number"
             dataKey="cagr"
-            name="Annualized return"
+            name={t.annualizedReturn}
             domain={["auto", "auto"]}
             width={56}
             tickFormatter={(v: number) =>
-              formatPercent(v, { decimals: 0, signed: true })
+              formatPercent(v, { decimals: 0, signed: true, locale })
             }
             tick={AXIS_TICK}
             tickLine={false}
@@ -119,17 +124,17 @@ export function SectorScatter({
                     {p.ticker} · {p.label}
                   </p>
                   <dl className="grid grid-cols-[auto_auto] gap-x-4 gap-y-0.5 p-2 text-graphite tabular-nums">
-                    <dt>Annualized return</dt>
+                    <dt>{t.annualizedReturn}</dt>
                     <dd className="text-right text-ink">
-                      {formatPercent(p.cagr, { signed: true })}
+                      {formatPercent(p.cagr, { signed: true, locale })}
                     </dd>
-                    <dt>Volatility</dt>
+                    <dt>{t.volatility}</dt>
                     <dd className="text-right text-ink">
-                      {formatPercent(p.volatility)}
+                      {formatPercent(p.volatility, { locale })}
                     </dd>
-                    <dt>Sharpe ratio</dt>
+                    <dt>{t.sharpe}</dt>
                     <dd className="text-right text-ink">
-                      {formatNumber(p.sharpe)}
+                      {formatNumber(p.sharpe, { locale })}
                     </dd>
                   </dl>
                 </div>

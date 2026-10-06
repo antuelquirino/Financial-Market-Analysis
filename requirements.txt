@@ -1,9 +1,0 @@
-streamlit
-google-cloud-bigquery
-google-auth
-pandas
-db-dtypes
-pyarrow
-numpy
-altair
-yfinance

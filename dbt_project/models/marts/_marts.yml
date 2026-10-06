@@ -90,11 +90,6 @@ models:
       - name: has_full_history
         description: False when the ticker has less history than the period.
 
-  - name: mart_prices
-    description: >
-      Legacy table with the columns the Streamlit app and Tableau expect.
-      volatility and sharpe_ratio are the 1-year rolling values.
-
   - name: mart_pipeline_status
     description: >
       One row: the latest market session in the data, the last successful and

@@ -1,5 +1,4 @@
-# Daily pipeline (extraction + dbt). The root requirements.txt belongs to the
-# Streamlit app, which Streamlit Community Cloud installs from there.
+# Daily pipeline (extraction + dbt). The API has its own api/requirements.txt.
 yfinance==1.2.0
 pandas==2.3.3
 pyarrow==23.0.1

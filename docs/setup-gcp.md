@@ -115,5 +115,5 @@ gcloud iam service-accounts delete "bq-loader@$PROJECT_ID.iam.gserviceaccount.co
 Deleting the account invalidates all its keys. Then delete the `GCP_SA_KEY`
 secret in GitHub (**Settings → Secrets and variables → Actions → Secrets**).
 
-`streamlit-permit` (read-only, used by the Streamlit app) stays until the new
-frontend replaces Streamlit.
+The Streamlit app's read-only account, `streamlit-permit`, was deleted with
+the app once the Next.js dashboard replaced it.

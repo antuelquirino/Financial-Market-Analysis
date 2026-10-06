@@ -41,16 +41,11 @@ The dashboard reuses InsightFlow's design system ("an analyst's report") with
 its own cobalt accent. Its rules and components are documented at
 [`/styleguide`](https://financial-market-analysis.vercel.app/styleguide).
 
-### Earlier dashboards
+### Tableau
 
-The first versions of the project, kept for reference: Tableau remains a
-complement in the portfolio, and the Streamlit app is superseded by the
-dashboard above.
-
-- **Streamlit app:** [financial-market-analysis.streamlit.app](https://financial-market-analysis-eebjsbfnfsd57txv6wrgra.streamlit.app/),
-  with performance and rolling risk per ticker.
-- **Tableau Public:** [Performance vs. Benchmark](https://public.tableau.com/app/profile/antuel.quirino/viz/Perfomancevs_Benchmark/Dashboard1),
-  a sector comparison.
+A sector comparison built on an earlier version of the data, kept as a
+complement: [Performance vs. Benchmark](https://public.tableau.com/app/profile/antuel.quirino/viz/Perfomancevs_Benchmark/Dashboard1)
+on Tableau Public.
 
 ## Architecture
 
@@ -64,7 +59,6 @@ flowchart LR
     D --> M[(analytics_finance<br/>marts)]
     M --> A[api/<br/>FastAPI, 1-hour cache]
     A --> W[web/<br/>Next.js dashboard]
-    M --> ST[Streamlit / Tableau<br/>legacy]
     GA[GitHub Actions<br/>weekdays 22:30 UTC] -. runs .-> E
     GA -. runs .-> D
 ```
@@ -74,7 +68,7 @@ flowchart LR
 | **Extraction** (`extraction/`) | Downloads daily OHLCV per ticker, validates it, and upserts it into `raw_finance.daily_prices`. Logs every run to `raw_finance.pipeline_runs`. |
 | **Staging** | Typed views over the sources and the ticker seed. |
 | **Intermediate** | `int_price_metrics` (daily return, cumulative return, drawdown, rolling volatility and Sharpe) and `int_periods` (1Y/3Y/5Y/MAX windows). |
-| **Marts** | `mart_daily_metrics` (time series with the benchmark), `mart_period_series` (series re-based to each period's start), `mart_period_metrics` (headline metrics per ticker and period), `mart_pipeline_status` (data freshness), `dim_tickers` (the ticker list). `mart_prices` is a legacy table for Streamlit and Tableau. |
+| **Marts** | `mart_daily_metrics` (time series with the benchmark), `mart_period_series` (series re-based to each period's start), `mart_period_metrics` (headline metrics per ticker and period), `mart_pipeline_status` (data freshness), `dim_tickers` (the ticker list). |
 | **API** (`api/`) | FastAPI over the marts only: fixed SQL with bound parameters, inputs validated with Pydantic, `maximum_bytes_billed` on every query, results cached in memory for an hour, CORS limited to the frontend. |
 | **Web** (`web/`) | Next.js (App Router) server components that call the API; the browser never talks to BigQuery or the API directly. |
 
@@ -239,7 +233,7 @@ repository variables.
 | API | FastAPI, Pydantic |
 | Frontend | Next.js 16, React 19, Tailwind CSS 4, Recharts, Tremor Raw components |
 | Testing | pytest, dbt data and unit tests, Vitest |
-| Legacy visualization | Streamlit, Tableau Public |
+| Complementary BI | Tableau Public |
 
 ---
 

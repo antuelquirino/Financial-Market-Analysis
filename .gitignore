@@ -5,7 +5,6 @@ prompt/
 *.json.key
 *-key.json
 gcp_key.json
-.streamlit/secrets.toml
 .env
 .env.*
 
